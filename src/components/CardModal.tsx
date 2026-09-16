@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Plus, Save, Trash2 } from 'lucide-react'
 import { getCard } from '../lib/catalog'
-import { cardmarketUrl, conditions, entryInputSchema, euros, formatDate, languages, marketValue, variants, type Card, type CardBrief, type Condition, type Entry, type EntryInput, type Language, type Variant } from '../lib/models'
+import { cardmarketUrl, conditions, entryInputSchema, euros, formatDate, isCardmarketProductUrl, languages, marketLow, marketValue, variants, type Card, type CardBrief, type Condition, type Entry, type EntryInput, type Language, type Variant } from '../lib/models'
 import { CardImage } from './CardImage'
 import { Modal } from './Modal'
 
@@ -32,14 +32,19 @@ function CardForm({ card, selection, signedIn, onAuth, busy, setBusy, onSave, on
   const [quantity, setQuantity] = useState(String(entry?.quantity ?? 1))
   const [manual, setManual] = useState(entry?.manual_value?.toString() ?? '')
   const [notes, setNotes] = useState(entry?.notes ?? '')
+  const [productUrl, setProductUrl] = useState(entry?.cardmarket_url ?? '')
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const value = marketValue(card, variant)
+  const low = marketLow(card, variant)
   const market = card.pricing?.cardmarket
+  const hasProductUrl = isCardmarketProductUrl(productUrl.trim())
+  const link = cardmarketUrl(card, selection.language, productUrl.trim())
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setError('')
-    const input = entryInputSchema.safeParse({ card_id: card.id, language: selection.language, variant, condition, quantity: Number(quantity), manual_value: manual === '' ? null : Number(manual), notes, card_snapshot: card })
+    if (productUrl.trim() && !hasProductUrl) { setError('El enlace debe ser la URL HTTPS de una carta en www.cardmarket.com, dentro de Pokémon → Cartas sueltas.'); return }
+    const input = entryInputSchema.safeParse({ card_id: card.id, language: selection.language, variant, condition, quantity: Number(quantity), manual_value: manual === '' ? null : Number(manual), notes, card_snapshot: card, cardmarket_url: hasProductUrl ? link : null })
     if (!input.success) { setError('Revisa los datos: cantidad entera entre 1 y 9999 y valoración no negativa.'); return }
     setBusy(true)
     try { await onSave(input.data, entry?.id); onClose() }
@@ -56,11 +61,17 @@ function CardForm({ card, selection, signedIn, onAuth, busy, setBusy, onSave, on
   return <div className="card-detail">
     <div className="detail-art"><CardImage card={card} large /><span className="pill">{languages[selection.language]} · {card.id}</span></div>
     <div className="detail-content"><p className="eyebrow">{card.set.name}</p><h3>{card.name}</h3><p className="muted">N.º {card.localId}{card.rarity ? ` · ${card.rarity}` : ''}</p>
-      <div className="market-box"><div><span>Referencia Cardmarket · {variants[variant]}</span><strong>{euros(value)}</strong></div><small>Datos de TCGdex · {formatDate(market?.updated)}</small><p>Precio orientativo del proveedor, no una oferta para tu idioma o estado. Reverse y primera edición requieren valoración manual.</p><a href={cardmarketUrl(card)} target="_blank" rel="noopener noreferrer">Buscar en Cardmarket <ExternalLink size={14} /></a><small>Verifica la expansión, el número, la variante y el idioma en los resultados.</small></div>
+      <div className="market-box"><div><span>Referencia Cardmarket · {variants[variant]}</span><a className="price-link" href={link} target="_blank" rel="noopener noreferrer" title={`${hasProductUrl ? 'Ver producto' : 'Buscar carta'} en Cardmarket · ${languages[selection.language]}`}><strong>{euros(value)}</strong><ExternalLink size={14} /></a></div><small>Datos de TCGdex · {formatDate(market?.updated)}</small>
+        {low !== null && <div className="market-low"><span>Mínimo general del proveedor</span><a href={link} target="_blank" rel="noopener noreferrer">{euros(low)} <ExternalLink size={12} /></a></div>}
+        <p>Estos importes no están filtrados por idioma ni conservación. El mínimo general no es la oferta más barata en {languages[selection.language]}. No incluye envío ni sustituye la valoración.</p>
+        <a href={link} target="_blank" rel="noopener noreferrer">{hasProductUrl ? 'Ver producto en Cardmarket' : 'Buscar en Cardmarket'} <ExternalLink size={14} /></a><small>Idioma solicitado: {languages[selection.language]}. {hasProductUrl ? 'Comprueba la variante, el estado y que el filtro siga aplicado.' : 'Selecciona el producto correcto y comprueba el filtro de idioma en su página.'}</small>
+      </div>
       <form onSubmit={submit} className="stack">
         <div className="form-row"><label>Variante<select value={variant} disabled={busy} onChange={(e) => setVariant(e.target.value as Variant)}>{options.map((key) => <option value={key} key={key}>{variants[key]}</option>)}</select></label><label>Conservación<select value={condition} disabled={busy} onChange={(e) => setCondition(e.target.value as Condition)}>{Object.entries(conditions).map(([key, text]) => <option value={key} key={key}>{key} · {text}</option>)}</select></label></div>
         <div className="form-row"><label>{entry ? 'Cantidad total' : 'Ejemplares que añadir'}<input type="number" min="1" max="9999" step="1" required value={quantity} disabled={busy} onChange={(e) => setQuantity(e.target.value)} /></label><label>Valor manual / carta (€)<input type="number" min="0" max="9999999" step="0.01" placeholder="Opcional" value={manual} disabled={busy} onChange={(e) => setManual(e.target.value)} /></label></div>
         <small className="muted">El valor manual sustituye la referencia de mercado para calcular el total.</small>
+        <label>Enlace del producto en Cardmarket (opcional)<input type="url" maxLength={1000} placeholder="https://www.cardmarket.com/es/Pokemon/Products/Singles/…" value={productUrl} disabled={busy} onChange={(e) => setProductUrl(e.target.value)} /></label>
+        <small className="muted">Pega la dirección de la carta exacta para abrirla al pulsar el precio. Se guarda con tu registro; el idioma se aplica automáticamente. Puedes anotar como valor manual el precio que compruebes allí.</small>
         {!entry && <small className="muted">Si ya existe esta carta con el mismo idioma, variante y estado, se sumará la cantidad. Sus notas y valor manual se conservan; puedes cambiarlos desde «Mi colección».</small>}
         <label>Notas<textarea rows={2} maxLength={2000} placeholder="Carpeta, procedencia, detalles del estado…" value={notes} disabled={busy} onChange={(e) => setNotes(e.target.value)} /></label>
         {error && <p role="alert" className="notice error">{error}</p>}

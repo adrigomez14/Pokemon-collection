@@ -31,7 +31,10 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
     }
     return route.fulfill({ status: 404 })
   })
-  await page.route('https://api.tcgdex.net/v2/**', (route) => route.fulfill({ json: /\/cards\//.test(new URL(route.request().url()).pathname) ? card : [card] }))
+  await page.route('https://api.tcgdex.net/v2/**', (route) => {
+    const path = new URL(route.request().url()).pathname
+    return route.fulfill({ json: path.endsWith('/sets') ? [{ id: 'base1', name: 'Base Set', cardCount: { total: 102, official: 102 } }] : /\/cards\//.test(path) ? card : [card] })
+  })
   await page.route('https://assets.tcgdex.net/**', (route) => route.abort())
   await page.goto('/')
   await page.getByRole('button', { name: 'Mi cuenta', exact: true }).click()
@@ -41,6 +44,8 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByRole('button', { name: /base1-58.*Pikachu/ }).click()
   await page.getByLabel('Ejemplares que añadir').fill('2')
+  const productUrl = 'https://www.cardmarket.com/es/Pokemon/Products/Singles/Base-Set/Pikachu?language=4'
+  await page.getByLabel('Enlace del producto en Cardmarket (opcional)').fill(productUrl)
   await page.getByRole('button', { name: 'Añadir a mi colección' }).click()
   await expect(page.getByRole('status')).toContainText('Carta añadida')
   await page.getByRole('navigation').getByRole('button', { name: /Mi colección/ }).click()
@@ -48,10 +53,21 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   await page.reload()
   await page.getByRole('navigation').getByRole('button', { name: /Mi colección/ }).click()
   await page.getByRole('button', { name: /2 ×.*Pikachu/ }).click()
+  await expect(page.getByLabel('Enlace del producto en Cardmarket (opcional)')).toHaveValue(productUrl)
   await page.getByLabel('Cantidad total').fill('3')
   await page.getByLabel('Valor manual / carta (€)').fill('12.50')
   await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await expect(page.getByRole('button', { name: /3 ×.*Pikachu/ })).toContainText('12,50 €')
+  await expect(page.getByRole('article').filter({ hasText: 'Pikachu' })).toContainText('12,50 €')
+  await expect(page.getByRole('link', { name: /12,50.*Ver producto en Cardmarket/ })).toHaveAttribute('href', productUrl)
+  // El enlace abre Cardmarket en otra pestaña, no el diálogo de edición.
+  await page.context().route('https://www.cardmarket.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>Destino simulado de prueba</p>' }))
+  const popupPromise = page.waitForEvent('popup')
+  await page.getByRole('link', { name: /12,50.*Ver producto en Cardmarket/ }).click()
+  const popup = await popupPromise
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await popup.close()
+  await page.getByRole('button', { name: 'Actualizar precios', exact: true }).click()
+  await expect(page.getByRole('link', { name: /12,50.*Ver producto en Cardmarket/ })).toHaveAttribute('href', productUrl)
   await expect(page.getByLabel('Resumen de tu colección')).toContainText('37,50 €')
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Exportar', exact: true }).click()

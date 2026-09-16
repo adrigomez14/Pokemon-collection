@@ -3,6 +3,7 @@ import { requireSupabase } from './supabase'
 import { cardSchema, entrySchema, entryInputSchema, type Card, type EntryInput } from './models'
 
 function databaseError(error: { code?: string; message: string }) {
+  if (error.code === 'PGRST204' || error.code === '42703') return new Error('Falta actualizar la base de datos para guardar enlaces. Ejecuta la migración 002_cardmarket_links.sql, sin repetir la primera migración.')
   if (error.code === '23505') return new Error('Ya existe un registro con esa carta, idioma, variante y conservación. Modifica su cantidad en vez de duplicarlo.')
   if (error.code === 'PGRST205' || error.code === 'PGRST202' || error.code === '42P01') return new Error('Falta preparar la base de datos. Ejecuta la migración SQL indicada en la guía de configuración.')
   if (error.code === '23514' || error.code === '22023') return new Error('Los datos o la cantidad no son válidos. Máximo 9999 ejemplares por registro.')
@@ -25,7 +26,14 @@ export async function loadCollection(userId: string, signal?: AbortSignal) {
 }
 
 export async function addEntry(input: EntryInput) {
-  const { error } = await requireSupabase().rpc('add_collection_entry', { entry: entryInputSchema.parse(input) })
+  const client = requireSupabase()
+  const entry = entryInputSchema.parse(input)
+  if (entry.cardmarket_url) {
+    // Evita que la RPC antigua acepte la carta pero descarte silenciosamente el enlace.
+    const { error } = await client.from('collection_entries').select('cardmarket_url').limit(0)
+    if (error) throw databaseError(error)
+  }
+  const { error } = await client.rpc('add_collection_entry', { entry })
   if (error) throw databaseError(error)
 }
 

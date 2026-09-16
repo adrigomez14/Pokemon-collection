@@ -27,6 +27,14 @@ beforeAll(async () => {
     insert into auth.users values ('${alice}'), ('${bob}');
   `)
   await db.exec(readFileSync(new URL('../supabase/migrations/001_collection.sql', import.meta.url), 'utf8'))
+  // Simula actualizar una instalación con datos, no solamente una base vacía.
+  await asUser(alice)
+  await add()
+  await db.exec('reset role;')
+  await db.exec(readFileSync(new URL('../supabase/migrations/002_cardmarket_links.sql', import.meta.url), 'utf8'))
+  await asUser(alice)
+  const existing = await db.query<{ quantity: number; cardmarket_url: string | null }>('select quantity, cardmarket_url from public.collection_entries')
+  expect(existing.rows).toEqual([{ quantity: 2, cardmarket_url: null }])
 })
 beforeEach(async () => {
   await db.exec('reset role; delete from public.collection_entries;')
@@ -35,6 +43,29 @@ beforeEach(async () => {
 afterAll(async () => { await db?.close() })
 
 describe('Postgres: persistencia y aislamiento RLS', () => {
+  const url = 'https://www.cardmarket.com/es/Pokemon/Products/Singles/151/Blastoise-ex-V3-MEW200?language=4'
+  it('persiste enlaces y los conserva al sumar copias y refrescar fichas', async () => {
+    await add({ ...entry, cardmarket_url: url })
+    await add({ ...entry, cardmarket_url: null })
+    await db.query('update public.collection_entries set card_snapshot = $1::jsonb', [JSON.stringify(entry.card_snapshot)])
+    expect((await db.query<{ cardmarket_url: string }>('select cardmarket_url from public.collection_entries')).rows[0].cardmarket_url).toBe(url)
+    await db.query('update public.collection_entries set cardmarket_url = null')
+    expect((await db.query<{ cardmarket_url: string | null }>('select cardmarket_url from public.collection_entries')).rows[0].cardmarket_url).toBeNull()
+  })
+  it('importa enlaces y acepta copias antiguas sin el campo', async () => {
+    await restore([{ ...entry, cardmarket_url: url }])
+    expect((await db.query<{ cardmarket_url: string }>('select cardmarket_url from public.collection_entries')).rows[0].cardmarket_url).toBe(url)
+    await restore([entry])
+    expect((await db.query<{ cardmarket_url: string | null }>('select cardmarket_url from public.collection_entries')).rows[0].cardmarket_url).toBeNull()
+  })
+  it('rechaza URLs externas y mantiene el aislamiento de los enlaces', async () => {
+    await expect(add({ ...entry, cardmarket_url: 'https://evil.example/product' })).rejects.toThrow()
+    await expect(restore([{ ...entry, cardmarket_url: 'javascript:alert(1)' }])).rejects.toThrow()
+    await add({ ...entry, cardmarket_url: url })
+    await asUser(bob)
+    expect((await db.query('update public.collection_entries set cardmarket_url = null returning id')).rows).toHaveLength(0)
+    expect((await db.query('select cardmarket_url from public.collection_entries')).rows).toHaveLength(0)
+  })
   it('guarda y suma cantidades sin crear registros duplicados', async () => {
     await add(); await add()
     const { rows } = await db.query<{ quantity: number; user_id: string }>('select quantity, user_id from public.collection_entries')

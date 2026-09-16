@@ -14,7 +14,7 @@ const priceNumber = z.number().finite().nonnegative().nullish()
 export const marketSchema = z.object({
   unit: z.string(), updated: z.string().nullish(), idProduct: z.number().int().positive().nullish(),
   trend: priceNumber, avg: priceNumber, low: priceNumber, avg7: priceNumber, avg30: priceNumber,
-  'trend-holo': priceNumber, 'avg-holo': priceNumber,
+  'trend-holo': priceNumber, 'avg-holo': priceNumber, 'low-holo': priceNumber,
 })
 export const briefSchema = z.object({
   id: z.string().min(1).max(100), name: z.string().min(1).max(200),
@@ -29,12 +29,22 @@ export const cardSchema = briefSchema.extend({
 export type CardBrief = z.infer<typeof briefSchema>
 export type Card = z.infer<typeof cardSchema>
 
+/** Solo se guardan páginas públicas de cartas sueltas de Cardmarket. */
+export function isCardmarketProductUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && url.hostname === 'www.cardmarket.com' && !url.port && !url.username && !url.password
+      && /^\/(?:es|en|fr|de|it|pt)\/Pokemon\/Products\/Singles\/[^/]+\/[^/]+\/?$/.test(url.pathname)
+  } catch { return false }
+}
+
 export const entryInputSchema = z.object({
   card_id: z.string().min(1).max(100), language: languageSchema,
   variant: variantSchema, condition: conditionSchema,
   quantity: z.number().int().min(1).max(9999),
   manual_value: z.number().finite().min(0).max(9999999).nullable(),
   notes: z.string().max(2000), card_snapshot: cardSchema,
+  cardmarket_url: z.string().max(1000).refine(isCardmarketProductUrl, 'Usa la URL HTTPS de una carta suelta en Cardmarket.').nullable().optional(),
 }).refine((entry) => entry.card_id === entry.card_snapshot.id, 'La carta no coincide con su identificador')
 export type EntryInput = z.infer<typeof entryInputSchema>
 export const entrySchema = entryInputSchema.safeExtend({
@@ -59,6 +69,14 @@ export function entryValue(entry: EntryInput) {
   return entry.manual_value ?? marketValue(entry.card_snapshot, entry.variant)
 }
 
+/** Mínimo general del feed; no filtra por idioma ni conservación y no sustituye la valoración. */
+export function marketLow(card: Card, variant: Variant): number | null {
+  const market = card.pricing?.cardmarket
+  if (!market || market.unit !== 'EUR') return null
+  const value = variant === 'normal' ? market.low : variant === 'holo' ? market['low-holo'] : null
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+}
+
 export function collectionStats(entries: EntryInput[]) {
   return entries.reduce((stats, entry) => {
     const value = entryValue(entry)
@@ -76,9 +94,21 @@ export function formatDate(value?: string | null) {
   return new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(new Date(value))
 }
 
-export function cardmarketUrl(card: CardBrief) {
+const cardmarketLanguages: Record<Language, string> = { es: '4', en: '1', ja: '7' }
+
+export function cardmarketUrl(card: CardBrief, language: Language = 'es', productUrl?: string | null) {
+  if (productUrl && isCardmarketProductUrl(productUrl)) {
+    const url = new URL(productUrl)
+    url.pathname = url.pathname.replace(/^\/[^/]+\//, '/es/')
+    // No conservar filtros de estado, vendedor o variante que podrían ocultar ofertas.
+    url.search = ''
+    url.hash = ''
+    url.searchParams.set('language', cardmarketLanguages[language])
+    return url.href
+  }
   const url = new URL('https://www.cardmarket.com/es/Pokemon/Products/Search')
   url.searchParams.set('searchString', `${card.name} ${card.localId}`)
+  url.searchParams.set('language', cardmarketLanguages[language])
   return url.href
 }
 

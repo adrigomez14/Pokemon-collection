@@ -1,9 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getCard, searchCards } from '../src/lib/catalog'
+import { getCard, getSets, searchCards } from '../src/lib/catalog'
 import { card } from './fixtures'
 
 afterEach(() => vi.unstubAllGlobals())
 describe('Cliente del catálogo', () => {
+  it('consulta expansiones por idioma y admite nuevas sin lista estática', async () => {
+    const original = { id: 'base1', name: 'Base', cardCount: { total: 102, official: 102 } }
+    const future = { id: 'future-test', name: 'Nueva expansión de prueba', cardCount: { total: 120, official: 100 } }
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([original])))
+      .mockResolvedValueOnce(new Response(JSON.stringify([future, original])))
+    vi.stubGlobal('fetch', fetch)
+    expect(await getSets('es')).toEqual([original])
+    expect(await getSets('es')).toEqual([original, future])
+    expect(new URL(fetch.mock.calls[0][0]).pathname).toBe('/v2/es/sets')
+  })
+  it('no mezcla expansiones de otros idiomas y rechaza índices inválidos', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('[{"id":"bad"}]'))
+    vi.stubGlobal('fetch', fetch)
+    await expect(getSets('ja')).rejects.toThrow()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(new URL(fetch.mock.calls[0][0]).pathname).toBe('/v2/ja/sets')
+  })
   it('envía idioma, paginación y filtros de expansión y número', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([card])))
     vi.stubGlobal('fetch', fetch)

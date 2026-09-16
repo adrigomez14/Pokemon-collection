@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { cardmarketUrl, collectionStats, createBackupParts, entryInputSchema, entryValue, formatDate, imageUrl, marketValue, parseBackup } from '../src/lib/models'
+import { cardmarketUrl, collectionStats, createBackupParts, entryInputSchema, entryValue, formatDate, imageUrl, marketLow, marketValue, parseBackup } from '../src/lib/models'
 import { card, entry } from './fixtures'
 
 describe('Precios y variantes', () => {
+  it('separa el mínimo general de la valoración y no inventa mínimos por idioma', () => {
+    const priced = { ...card, pricing: { cardmarket: { unit: 'EUR', trend: 5, low: 1, 'low-holo': 2 } } }
+    expect(marketLow(priced, 'normal')).toBe(1)
+    expect(marketLow(priced, 'holo')).toBe(2)
+    expect(marketLow(priced, 'reverse')).toBeNull()
+    expect(marketLow(priced, 'firstEdition')).toBeNull()
+    expect(entryValue({ ...entry, card_snapshot: priced })).toBe(5)
+    expect(marketLow({ ...card, pricing: { cardmarket: { unit: 'EUR', low: 0 } } }, 'normal')).toBeNull()
+    expect(marketLow({ ...card, pricing: { cardmarket: { unit: 'USD', low: 1 } } }, 'normal')).toBeNull()
+    expect(marketLow(card, 'normal')).toBeNull()
+  })
   it('distingue la referencia normal de la holo', () => {
     expect(marketValue(card, 'normal')).toBe(2.5)
     expect(marketValue(card, 'holo')).toBe(5)
@@ -60,6 +71,28 @@ describe('Validación de colección y copias', () => {
     const url = new URL(cardmarketUrl({ ...card, name: 'Pikachu & Eevee' }))
     expect(url.hostname).toBe('www.cardmarket.com')
     expect(url.searchParams.get('searchString')).toBe('Pikachu & Eevee 58')
+    expect(url.searchParams.get('language')).toBe('4')
+  })
+  it.each([['es', '4'], ['en', '1'], ['ja', '7']] as const)('aplica el idioma %s al producto sin arrastrar otros filtros', (language, code) => {
+    const product = 'https://www.cardmarket.com/en/Pokemon/Products/Singles/151/Blastoise-ex-V3-MEW200?language=2&minCondition=1#offers'
+    const url = new URL(cardmarketUrl(card, language, product))
+    expect(url.pathname).toBe('/es/Pokemon/Products/Singles/151/Blastoise-ex-V3-MEW200')
+    expect(url.search).toBe(`?language=${code}`)
+    expect(url.hash).toBe('')
+  })
+  it.each([
+    'javascript:alert(1)', 'http://www.cardmarket.com/es/Pokemon/Products/Singles/151/Card',
+    'https://www.cardmarket.com.evil.example/es/Pokemon/Products/Singles/151/Card',
+    'https://user:password@www.cardmarket.com/es/Pokemon/Products/Singles/151/Card',
+    'https://www.cardmarket.com/es/Pokemon/Products/Search?searchString=Pikachu',
+  ])('rechaza enlaces de producto no válidos: %s', (url) => {
+    expect(entryInputSchema.safeParse({ ...entry, cardmarket_url: url }).success).toBe(false)
+    expect(new URL(cardmarketUrl(card, 'es', url)).pathname).toBe('/es/Pokemon/Products/Search')
+  })
+  it('conserva enlaces válidos en las copias y acepta las antiguas sin enlace', () => {
+    const linked = { ...entry, cardmarket_url: 'https://www.cardmarket.com/es/Pokemon/Products/Singles/151/Blastoise-ex-V3-MEW200?language=4' }
+    expect(parseBackup(createBackupParts([linked])[0]).entries).toEqual([linked])
+    expect(parseBackup(createBackupParts([entry])[0]).entries).toEqual([entry])
   })
   it('solo permite imágenes HTTPS del proveedor conocido', () => {
     expect(imageUrl(card.image)).toBe(`${card.image}/low.webp`)
