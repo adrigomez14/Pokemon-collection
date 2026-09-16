@@ -1,6 +1,40 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getCard, getSets, searchCards } from '../src/lib/catalog'
-import { card } from './fixtures'
+import { getCard, getFilterValues, getSets, LATEST_SET, searchCards } from '../src/lib/catalog'
+import { card, holoOnlyCard } from './fixtures'
+
+describe('Inicio con novedades', () => {
+  it('usa la primera expansión con cartas ordenada por lanzamiento, no por ID o nombre', async () => {
+    const fetch = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([
+        { id: 'empty', name: 'Sin cartas', cardCount: { total: 0, official: 0 } },
+        { id: 'a-new', name: 'Nueva', cardCount: { total: 50, official: 50 } },
+        { id: 'z-old', name: 'Anterior', cardCount: { total: 90, official: 90 } },
+      ])))
+      .mockResolvedValueOnce(new Response(JSON.stringify([card])))
+    vi.stubGlobal('fetch', fetch)
+    await searchCards('es', { name: '', set: LATEST_SET, number: '', page: 2 })
+    const sets = new URL(fetch.mock.calls[0][0])
+    expect(sets.searchParams.get('sort:field')).toBe('releaseDate')
+    expect(sets.searchParams.get('sort:order')).toBe('DESC')
+    const cards = new URL(fetch.mock.calls[1][0])
+    expect(cards.searchParams.get('set.id')).toBe('eq:a-new')
+    expect(cards.searchParams.get('pagination:page')).toBe('2')
+    expect(cards.searchParams.get('sort:field')).toBe('localId')
+    expect(cards.searchParams.has('name')).toBe(false)
+  })
+  it('no muestra cartas antiguas como novedades cuando falta el índice', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('Unavailable', { status: 503 }))
+    vi.stubGlobal('fetch', fetch)
+    await expect(searchCards('ja', { name: '', set: LATEST_SET, number: '', page: 1 })).rejects.toThrow('catálogo')
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+  it('devuelve vacío sin consultar cartas si no hay expansiones disponibles', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('[]'))
+    vi.stubGlobal('fetch', fetch)
+    expect(await searchCards('en', { name: '', set: LATEST_SET, number: '', page: 1 })).toEqual([])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
 
 afterEach(() => vi.unstubAllGlobals())
 describe('Cliente del catálogo', () => {
@@ -28,9 +62,10 @@ describe('Cliente del catálogo', () => {
     await searchCards('ja', { name: 'ピカチュウ', set: 'SV1', number: '025', page: 2 })
     const url = new URL(fetch.mock.calls[0][0])
     expect(url.pathname).toBe('/v2/ja/cards')
-    expect(url.searchParams.get('name')).toBe('ピカチュウ')
+    expect(url.searchParams.get('name')).toBe('like:ピカチュウ')
     expect(url.searchParams.get('set.id')).toBe('eq:SV1')
-    expect(url.searchParams.get('localId')).toBe('eq:025')
+    expect(url.searchParams.get('id')).toBe('like:*-025')
+    expect(url.searchParams.has('localId')).toBe(false)
     expect(url.searchParams.get('pagination:page')).toBe('2')
     expect(url.searchParams.get('pagination:itemsPerPage')).toBe('24')
   })
@@ -39,6 +74,49 @@ describe('Cliente del catálogo', () => {
     const result = await getCard('es', card.id)
     expect(result.image).toBeNull()
     expect(result.pricing).toBeNull()
+  })
+  it('envía todos los filtros y ordenación al servidor antes de paginar', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([holoOnlyCard])))
+    vi.stubGlobal('fetch', fetch)
+    await searchCards('es', { name: 'Blastoise ex', exactName: true, set: 'sv03.5', number: '200', page: 2, category: 'Pokémon', rarity: 'Rara Ilustración Especial', type: 'Agua', imageOnly: true, sort: 'name-desc' })
+    const url = new URL(fetch.mock.calls[0][0])
+    expect(url.searchParams.get('name')).toBe('eq:Blastoise ex')
+    expect(url.searchParams.get('id')).toBe('like:*-200')
+    expect(url.searchParams.get('category')).toBe('eq:Pokémon')
+    expect(url.searchParams.get('rarity')).toBe('eq:Rara Ilustración Especial')
+    expect(url.searchParams.get('types')).toBe('eq:Agua')
+    expect(url.searchParams.get('image')).toBe('notnull:')
+    expect(url.searchParams.get('sort:field')).toBe('name')
+    expect(url.searchParams.get('sort:order')).toBe('DESC')
+    expect(url.searchParams.get('pagination:page')).toBe('2')
+  })
+  it('ordena por número y omite filtros vacíos', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('[]'))
+    vi.stubGlobal('fetch', fetch)
+    await searchCards('en', { name: ' ', number: '', set: '', page: 1, sort: 'number-asc' })
+    const url = new URL(fetch.mock.calls[0][0])
+    expect(url.searchParams.get('sort:field')).toBe('localId')
+    expect(url.searchParams.get('sort:order')).toBe('ASC')
+    expect(url.searchParams.has('name')).toBe(false)
+    expect(url.searchParams.has('image')).toBe(false)
+  })
+  it('rechaza comodines y barras en el número antes de consultar', async () => {
+    const fetch = vi.fn()
+    vi.stubGlobal('fetch', fetch)
+    await expect(searchCards('es', { name: '', number: '200/165', set: '', page: 1 })).rejects.toThrow('sin barras')
+    await expect(searchCards('es', { name: '', number: '*', set: '', page: 1 })).rejects.toThrow('sin barras')
+    expect(fetch).not.toHaveBeenCalled()
+  })
+  it('obtiene los vocabularios del idioma seleccionado y valida su formato', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(new Response('["Rayo","Agua"]')).mockResolvedValueOnce(new Response('[{"name":"bad"}]'))
+    vi.stubGlobal('fetch', fetch)
+    expect(await getFilterValues('es', 'types')).toEqual(['Agua', 'Rayo'])
+    expect(new URL(fetch.mock.calls[0][0]).pathname).toBe('/v2/es/types')
+    await expect(getFilterValues('ja', 'rarities')).rejects.toThrow()
+  })
+  it('no descarta la identidad de variante y sus precios al leer una ficha', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(holoOnlyCard))))
+    expect((await getCard('es', holoOnlyCard.id)).variants_detailed).toEqual(holoOnlyCard.variants_detailed)
   })
   it('no consulta otro idioma para rellenar un precio ausente', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ...card, pricing: undefined })))

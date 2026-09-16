@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { readSheet } from 'read-excel-file/node'
 import { card, entry } from '../fixtures'
 import type { Entry } from '../../src/lib/models'
 
@@ -33,6 +34,7 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   })
   await page.route('https://api.tcgdex.net/v2/**', (route) => {
     const path = new URL(route.request().url()).pathname
+    if (/\/(categories|types|rarities)$/.test(path)) return route.fulfill({ json: [] })
     return route.fulfill({ json: path.endsWith('/sets') ? [{ id: 'base1', name: 'Base Set', cardCount: { total: 102, official: 102 } }] : /\/cards\//.test(path) ? card : [card] })
   })
   await page.route('https://assets.tcgdex.net/**', (route) => route.abort())
@@ -69,8 +71,20 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   await page.getByRole('button', { name: 'Actualizar precios', exact: true }).click()
   await expect(page.getByRole('link', { name: /12,50.*Ver producto en Cardmarket/ })).toHaveAttribute('href', productUrl)
   await expect(page.getByLabel('Resumen de tu colección')).toContainText('37,50 €')
+  // Excel incluye la colección completa, incluso cuando el filtro oculta el registro.
+  await page.getByLabel('Buscar en mi colección').fill('no-coincide')
+  await expect(page.getByRole('heading', { name: 'Sin coincidencias' })).toBeVisible()
+  const excelDownload = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Exportar Excel', exact: true }).click()
+  const excel = await excelDownload
+  expect(excel.suggestedFilename()).toMatch(/^pokemon-collection-.*\.xlsx$/)
+  const excelPath = await excel.path()
+  expect(excelPath).not.toBeNull()
+  const sheet = await readSheet(excelPath!, 'Mi colección')
+  expect(sheet[1].slice(0, 5)).toEqual(['Pikachu', 'Base Set', 12.5, 3, 37.5])
+  await page.getByLabel('Buscar en mi colección').fill('')
   const download = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Exportar', exact: true }).click()
+  await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click()
   expect((await download).suggestedFilename()).toMatch(/^pokemon-collection-.*\.json$/)
   await page.locator('input[type=file]').setInputFiles({ name: 'collection.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ version: 1, exportedAt: '2026-09-16', entries: [{ ...entry, quantity: 4 }] })) })
   await page.getByRole('button', { name: 'Confirmar importación' }).click()
@@ -79,6 +93,7 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   await page.getByRole('button', { name: 'Eliminar de mi colección' }).click()
   await page.getByRole('button', { name: 'Sí, eliminar' }).click()
   await expect(page.getByRole('heading', { name: 'El primer hueco es para tu favorita' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Exportar Excel', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Tu colección empieza con una carta' })).toBeVisible()
 })

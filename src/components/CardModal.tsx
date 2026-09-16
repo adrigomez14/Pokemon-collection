@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Plus, Save, Trash2 } from 'lucide-react'
 import { getCard } from '../lib/catalog'
-import { cardmarketUrl, conditions, entryInputSchema, euros, formatDate, isCardmarketProductUrl, languages, marketLow, marketValue, variants, type Card, type CardBrief, type Condition, type Entry, type EntryInput, type Language, type Variant } from '../lib/models'
+import { cardmarketUrl, conditions, entryInputSchema, euros, formatDate, isCardmarketProductUrl, languages, marketQuote, variants, type Card, type CardBrief, type Condition, type Entry, type EntryInput, type Language, type Variant } from '../lib/models'
 import { CardImage } from './CardImage'
 import { Modal } from './Modal'
 
@@ -35,9 +35,8 @@ function CardForm({ card, selection, signedIn, onAuth, busy, setBusy, onSave, on
   const [productUrl, setProductUrl] = useState(entry?.cardmarket_url ?? '')
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const value = marketValue(card, variant)
-  const low = marketLow(card, variant)
-  const market = card.pricing?.cardmarket
+  const quote = marketQuote(card, variant)
+  const { value, low } = quote
   const hasProductUrl = isCardmarketProductUrl(productUrl.trim())
   const link = cardmarketUrl(card, selection.language, productUrl.trim())
 
@@ -61,7 +60,9 @@ function CardForm({ card, selection, signedIn, onAuth, busy, setBusy, onSave, on
   return <div className="card-detail">
     <div className="detail-art"><CardImage card={card} large /><span className="pill">{languages[selection.language]} · {card.id}</span></div>
     <div className="detail-content"><p className="eyebrow">{card.set.name}</p><h3>{card.name}</h3><p className="muted">N.º {card.localId}{card.rarity ? ` · ${card.rarity}` : ''}</p>
-      <div className="market-box"><div><span>Referencia Cardmarket · {variants[variant]}</span><a className="price-link" href={link} target="_blank" rel="noopener noreferrer" title={`${hasProductUrl ? 'Ver producto' : 'Buscar carta'} en Cardmarket · ${languages[selection.language]}`}><strong>{euros(value)}</strong><ExternalLink size={14} /></a></div><small>Datos de TCGdex · {formatDate(market?.updated)}</small>
+      <div className="market-box"><div><span>Referencia Cardmarket · {variants[variant]}</span><a className="price-link" href={link} target="_blank" rel="noopener noreferrer" title={`${hasProductUrl ? 'Ver producto' : 'Buscar carta'} en Cardmarket · ${languages[selection.language]}`}><strong>{euros(value)}</strong><ExternalLink size={14} /></a></div><small>Datos de TCGdex · {formatDate(quote.updated)}</small>
+        {quote.generalProduct && <small>Datos del producto asociado a la única variante holo identificada por el proveedor.</small>}
+        {value === null && <p className="price-unavailable">{variant === 'reverse' || variant === 'firstEdition' ? 'No hay una referencia inequívoca para esta variante. Puedes indicar un valor manual.' : 'No hay una referencia positiva en euros que podamos asignar con seguridad a esta variante. No significa que la carta valga cero.'}</p>}
         {low !== null && <div className="market-low"><span>Mínimo general del proveedor</span><a href={link} target="_blank" rel="noopener noreferrer">{euros(low)} <ExternalLink size={12} /></a></div>}
         <p>Estos importes no están filtrados por idioma ni conservación. El mínimo general no es la oferta más barata en {languages[selection.language]}. No incluye envío ni sustituye la valoración.</p>
         <a href={link} target="_blank" rel="noopener noreferrer">{hasProductUrl ? 'Ver producto en Cardmarket' : 'Buscar en Cardmarket'} <ExternalLink size={14} /></a><small>Idioma solicitado: {languages[selection.language]}. {hasProductUrl ? 'Comprueba la variante, el estado y que el filtro siga aplicado.' : 'Selecciona el producto correcto y comprueba el filtro de idioma en su página.'}</small>

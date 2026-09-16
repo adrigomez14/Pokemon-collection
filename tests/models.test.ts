@@ -1,8 +1,53 @@
 import { describe, expect, it } from 'vitest'
-import { cardmarketUrl, collectionStats, createBackupParts, entryInputSchema, entryValue, formatDate, imageUrl, marketLow, marketValue, parseBackup } from '../src/lib/models'
-import { card, entry } from './fixtures'
+import { cardmarketUrl, collectionStats, createBackupParts, entryInputSchema, entryValue, formatDate, imageUrl, marketLow, marketQuote, marketValue, parseBackup } from '../src/lib/models'
+import { card, entry, holoOnlyCard } from './fixtures'
 
 describe('Precios y variantes', () => {
+  it('recupera la referencia de Blastoise 200 desde su producto holo inequívoco', () => {
+    expect(marketQuote(holoOnlyCard, 'holo')).toEqual({ value: 134.4, low: 75, updated: '2026-09-16T18:05:40.265Z', generalProduct: true })
+    expect(marketValue(holoOnlyCard, 'reverse')).toBeNull()
+    expect(marketValue(holoOnlyCard, 'firstEdition')).toBeNull()
+  })
+  it('requiere datos detallados y no adivina el precio en copias antiguas', () => {
+    expect(marketValue({ ...holoOnlyCard, variants_detailed: undefined }, 'holo')).toBeNull()
+    expect(marketValue({ ...holoOnlyCard, variants: undefined }, 'holo')).toBeNull()
+    expect(marketValue({ ...holoOnlyCard, variants: { ...holoOnlyCard.variants, normal: true } }, 'holo')).toBeNull()
+    expect(marketValue({ ...holoOnlyCard, variants: { ...holoOnlyCard.variants, reverse: true } }, 'holo')).toBeNull()
+    expect(marketValue({ ...holoOnlyCard, variants: { ...holoOnlyCard.variants, firstEdition: true } }, 'holo')).toBeNull()
+  })
+  it('acepta el tamaño estándar inglés pero nunca valores cero ni otra moneda', () => {
+    const detail = holoOnlyCard.variants_detailed![0]
+    expect(marketValue({ ...holoOnlyCard, variants_detailed: [{ ...detail, size: 'standard' }] }, 'holo')).toBe(134.4)
+    for (const market of [
+      { unit: 'USD', idProduct: 733795, trend: 134.4, low: 75 },
+      { unit: 'EUR', idProduct: 733795, trend: 0, low: 0 },
+      { unit: 'EUR', trend: 134.4, low: 75 },
+    ]) {
+      const unavailable = { ...holoOnlyCard, variants_detailed: [{ ...detail, pricing: { cardmarket: market } }] }
+      expect(marketValue(unavailable, 'holo')).toBeNull()
+      expect(marketLow(unavailable, 'holo')).toBeNull()
+    }
+  })
+  it('no usa un producto con variantes múltiples, estampados o tamaños especiales', () => {
+    const detail = holoOnlyCard.variants_detailed![0]
+    for (const variants_detailed of [
+      [detail, detail], [{ ...detail, type: 'normal' }], [{ ...detail, size: 'jumbo' }],
+      [{ ...detail, subtype: 'shadowless' }], [{ ...detail, stamp: ['1st-edition'] }],
+      [{ ...detail, thirdParty: { cardmarket: 123 } }],
+    ]) expect(marketValue({ ...holoOnlyCard, variants_detailed }, 'holo')).toBeNull()
+    expect(marketValue({ ...holoOnlyCard, pricing: { cardmarket: { unit: 'EUR', idProduct: 123, 'trend-holo': 0 } } }, 'holo')).toBeNull()
+  })
+  it('no reemplaza una referencia holo explícita y muestra su fecha de origen', () => {
+    const detailed = holoOnlyCard.variants_detailed![0]
+    const priced = { ...holoOnlyCard, variants_detailed: [{ ...detailed, pricing: { cardmarket: { unit: 'EUR', idProduct: 733795, trend: 999, low: 999, 'trend-holo': 12, 'low-holo': 8, updated: '2026-09-17' } } }] }
+    expect(marketQuote(priced, 'holo')).toEqual({ value: 12, low: 8, updated: '2026-09-17', generalProduct: false })
+  })
+  it('conserva los datos detallados en las copias y respeta los valores manuales', () => {
+    const linked = { ...entry, card_id: holoOnlyCard.id, card_snapshot: holoOnlyCard, variant: 'holo' as const }
+    const restored = parseBackup(createBackupParts([linked])[0]).entries[0]
+    expect(entryValue(restored)).toBe(134.4)
+    expect(entryValue({ ...restored, manual_value: 0 })).toBe(0)
+  })
   it('separa el mínimo general de la valoración y no inventa mínimos por idioma', () => {
     const priced = { ...card, pricing: { cardmarket: { unit: 'EUR', trend: 5, low: 1, 'low-holo': 2 } } }
     expect(marketLow(priced, 'normal')).toBe(1)

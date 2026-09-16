@@ -4,7 +4,8 @@ Aplicación web personal en español, adaptable a móvil y ordenador. React + Ty
 
 ## Qué puedes hacer
 
-- Buscar cartas por nombre, expansión (selector por nombre o ID) y número, con paginación.
+- Buscar cartas por nombre (parcial o exacto), categoría, expansión, rareza, tipo/elemento y número, con paginación.
+- Mostrar sólo cartas con imagen, ordenar por nombre/número y alternar entre lista y cuadrícula.
 - Descubrir expansiones nuevas desde TCGdex automáticamente, sin mantener una lista fija ni redesplegar por cada lanzamiento.
 - Consultar catálogos en español, inglés y japonés. El nombre se busca en el idioma seleccionado: por ejemplo, **ピカチュウ** en japonés.
 - Ver la imagen de cada carta cuando el proveedor la tenga disponible.
@@ -15,6 +16,8 @@ Aplicación web personal en español, adaptable a móvil y ordenador. React + Ty
 - Guardar opcionalmente la URL exacta del producto en cada registro; al abrirla se solicita el idioma de la carta (español por defecto en el catálogo). Sin URL guardada, se abre una búsqueda, no un producto garantizado.
 - Filtrar y ordenar tu colección; ver cantidades, valoración orientativa y ejemplares sin precio.
 - Exportar e importar copias JSON. Las colecciones grandes se dividen en partes descargables y restaurables.
+- Descargar tu colección como Excel real con nombre, colección y precio, además de cantidad, total, idioma y variante.
+- Usar un diseño de entrenador con panel tipo Pokédex, detalles de Poké Ball y colores de tipos; adaptable a móvil y respetuoso con la preferencia de movimiento reducido.
 
 **Estado inicial:** el catálogo puede usarse sin configurar nada. El guardado y las cuentas requieren conectar TU proyecto de Supabase. No hay usuarios ni datos de colección ficticios en producción. La aplicación no está publicada en Internet automáticamente.
 
@@ -81,12 +84,24 @@ El catálogo se consulta directamente en la API pública de TCGdex, no se almace
 
 - El selector obtiene `/v2/{idioma}/sets` en ejecución. Se comprueba cada 15 minutos mientras el catálogo está abierto y visible, y al volver a la ventana si los datos llevan al menos 5 minutos en caché.
 - La página de cartas visible se vuelve a consultar cada 5 minutos. **Actualizar catálogo** permite solicitar inmediatamente el índice y los resultados actuales. Los intervalos pueden retrasarse si el navegador suspende la pestaña.
-- Elegir una expansión elimina los filtros de nombre/número y vuelve a la primera página, para no mostrar únicamente los Pikachu de ese set.
+- Elegir una expansión elimina los filtros de nombre/número y vuelve a la primera página.
 - Los filtros activos siguen limitando los resultados. Esta actualización **no añade cartas a tu colección personal**, solo permite encontrarlas.
 - No se garantiza cobertura completa, imágenes, precios ni disponibilidad el día del lanzamiento. Puede haber cartas sin traducir o aún no cargadas. El índice del proveedor también puede incluir series digitales de Pokémon TCG Pocket; no todos sus resultados corresponden a cartas físicas vendidas en Cardmarket.
 - Si falla el índice, se conserva la lista anterior cuando exista y sigue siendo posible buscar por nombre o ID.
 
 Comprobación del 16/09/2026: la API devolvió 154 expansiones en español, 218 en inglés y 184 en japonés. No se encontró `30th Celebration` / `30C` en esos índices. Las entradas `cel25` y `cel25cc` corresponden a Celebraciones del **25 aniversario**, no del 30. Estos números son una observación puntual, no una lista incorporada a la aplicación ni una confirmación de la fecha de lanzamiento. Consulta [la cobertura y limitaciones de TCGdex](https://tcgdex.dev/faq).
+
+## Filtros del catálogo
+
+- Al abrir la web o cambiar de idioma, **Nombre** está vacío y se selecciona **Novedades · expansión más reciente**. Se consulta el índice ordenado por `releaseDate` descendente, sin mantener un ID fijo; se muestra la primera expansión con cartas y se pagina dentro de ella por número. No es una ordenación global de todas las cartas ni una selección por popularidad.
+- Selecciona **Todas las expansiones** o **Limpiar filtros** para salir de novedades y buscar en todo el catálogo. Las novedades reflejan la cobertura y las fechas del proveedor, que también puede incluir lanzamientos anunciados o series digitales.
+- Categoría distingue Pokémon, Entrenador y Energía; no son filtros de sobres o cajas. Las opciones de categoría, rareza y tipo se consultan al proveedor en el idioma elegido.
+- Nombre exacto distingue mayúsculas/minúsculas según TCGdex. Sin marcarlo se usa búsqueda parcial. Los filtros se combinan; si no hay coincidencias, prueba **Limpiar filtros**.
+- Más opciones de filtro contiene rareza, tipo, número e ID de expansión. El número es el código antes de la barra y conserva los ceros iniciales: `025` no es `25`. No admite barras ni comodines. Se busca el sufijo exacto del identificador porque el filtro estricto `localId` del proveedor no devuelve algunas cartas válidas.
+- Cambiar la expansión limpia nombre/número, pero conserva los demás filtros. Cambiar el idioma reinicia los filtros, para no arrastrar términos de otro catálogo.
+- Ordenar por nombre o número se aplica en el servidor antes de paginar, no sólo a las cartas visibles. Cambiar la ordenación aplica también los filtros preparados y vuelve a la primera página.
+- **Sólo con imagen** indica imagen catalogada, no existencias en Cardmarket. No se incluyen «Sólo disponibles» ni «Más popular»: la fuente actual no proporciona esos datos.
+- Se muestra el número de cartas de la página, no un total global estimado. Lista/cuadrícula cambia la presentación sin cambiar la búsqueda. Abre una carta para consultar su precio.
 
 ## Cómo interpretar los precios
 
@@ -95,11 +110,13 @@ La aplicación **no hace scraping de Cardmarket** ni requiere acceso a su API co
 - Solo se usan datos cuyo `unit` es `EUR`.
 - Las referencias cero del feed se consideran no disponibles por precaución: no demuestran que una carta valga cero. Un valor manual de cero sí se respeta.
 - Normal utiliza `pricing.cardmarket.trend`; Holo utiliza el campo `trend-holo`, según la nomenclatura del proveedor.
+- Excepción conservadora para productos exclusivamente holo: si los indicadores descartan normal/reverse/primera edición y hay exactamente una variante detallada holo estándar sin subtipo ni estampados, con identificadores Cardmarket coincidentes, se utilizan sus precios de producto. Si los campos holo están vacíos/cero, se permite usar su `trend`/`low` general positivo. La ficha avisa de este origen. Corrige casos como Blastoise ex 200 de 151, pero no traslada precios entre variantes ambiguas.
 - El dato adicional **Mínimo general del proveedor** usa `low` para normal y `low-holo` para holo, cuando es positivo y está disponible. No sustituye el valor de referencia ni el total de colección. No se muestra como oferta mínima española, inglesa o japonesa.
 - Reverse y primera edición no heredan precios de otra variante: usa la valoración manual tras verificar el producto en Cardmarket.
 - No se sustituyen precios españoles o japoneses por los de la ficha inglesa. Si faltan, se muestra **Sin precio**.
 - Los datos de mercado no están ajustados al idioma, conservación, graduación o ejemplar concreto. No son una oferta de compra, una tasación ni una promesa de venta.
 - La fecha mostrada es la del proveedor. **Actualizar precios** vuelve a consultar los últimos datos disponibles; no crea un precio nuevo ni altera valores manuales. Si falla una consulta, se conserva la referencia anterior y se avisa.
+- Las fichas guardadas con versiones anteriores pueden no contener los detalles de variante necesarios. Tras actualizar la web, pulsa **Mi colección → Actualizar precios** para recuperarlos. No hacen falta nuevas tablas ni migraciones para esta corrección.
 - Al pulsar un precio se abre una pestaña nueva. Si guardaste un **Enlace del producto en Cardmarket** en el formulario, se utiliza esa URL. Sin enlace guardado se abre una **búsqueda por nombre y número**, no una correspondencia garantizada. No se inventan slugs a partir del nombre ni se deduce un producto exacto solo a partir de un identificador de precio.
 - Los enlaces solicitan `language=4` (español), `1` (inglés) o `7` (japonés), según el idioma del registro; `/es/` es únicamente el idioma de la interfaz de Cardmarket. Se descartan otros parámetros pegados para evitar filtros heredados de vendedor/estado. Verifica expansión, número, variante e idioma después de abrir la página: no se automatizan los filtros de variante ni conservación, y la búsqueda puede no conservar el idioma al entrar en un resultado.
 - Solo se aceptan enlaces HTTPS a productos Pokémon de `www.cardmarket.com`. La app no descarga ni analiza esas páginas. Guardar una URL no verifica automáticamente que corresponda a la carta: debes comprobarla antes de guardarla.
@@ -113,14 +130,28 @@ TCGdex puede carecer de imágenes de ciertas cartas o idiomas. En ese caso se mu
 ## Actualizar una instalación ya publicada
 
 1. Exporta tu colección como copia de seguridad.
-2. En el editor SQL de **tu proyecto Supabase existente**, ejecuta **solo** [supabase/migrations/002_cardmarket_links.sql](supabase/migrations/002_cardmarket_links.sql). Añade la columna de enlace y actualiza las dos RPC en una transacción, conservando cartas, cantidades, usuarios y RLS. No ejecutes otra vez la primera migración.
+2. Si ya ejecutaste la migración de enlaces, **no ejecutes SQL de nuevo**: esta actualización de filtros y precios no cambia la base de datos. Sólo si todavía no aplicaste [supabase/migrations/002_cardmarket_links.sql](supabase/migrations/002_cardmarket_links.sql), ejecútala una vez en tu proyecto existente. No vuelvas a ejecutar la primera migración.
 3. Sube los cambios de este proyecto a tu repositorio personal, manteniendo las carpetas completas y excluyendo `.env.local`, dependencias, compilaciones y copias de la colección. La carpeta `pokemon-collection-para-github` preparada anteriormente es una foto antigua: no se actualiza sola al editar el proyecto original.
 4. Despliega el nuevo commit de `main` en Vercel. No hay nuevas variables de entorno ni cambios en las URLs de Supabase.
-5. En la web publicada, comprueba el selector de expansiones y guarda el enlace de una carta. Recarga, abre su precio y verifica que se abre el producto con el idioma correcto. La publicación de esta mejora requiere este despliegue; las nuevas expansiones que publique después TCGdex no.
+5. En la web publicada, prueba los filtros y pulsa **Mi colección → Actualizar precios** para actualizar las fichas antiguas. Abre un precio con enlace de producto guardado y comprueba el idioma. La publicación de esta mejora requiere este despliegue; las nuevas expansiones que publique después TCGdex no.
 
 ## Copias de seguridad
 
-**Exportar** descarga tus registros, pero nunca contraseñas, tokens de sesión ni identificadores de propietario. Los archivos contienen datos personales de tu colección: guárdalos en un lugar seguro y no los subas a un repositorio público.
+### Exportar a Excel
+
+En **Mi colección → Exportar Excel** se descarga un archivo `.xlsx` con **toda** la colección, aunque tengas filtros de búsqueda o idioma activos.
+
+- Hoja **Mi colección**: nombre, colección, precio unitario en euros, cantidad, total valorado, idioma, variante, conservación, número, ID, origen y fecha del precio.
+- Los importes son números con formato monetario, para poder sumarlos en Excel. El valor manual tiene prioridad; el resto usa la misma referencia que la web, no el mínimo general de ofertas.
+- Una carta sin referencia deja precio y total vacíos; un valor manual de cero se conserva como cero. El número de carta mantiene los ceros iniciales.
+- Hoja **Información**: fecha de exportación, recuentos y limitaciones de la valoración.
+- Se genera en tu navegador: no se envían tus cartas a un servicio de conversión. No incluye correo, tokens, identificadores de propietario ni notas personales. Los nombres se escriben como texto, nunca como fórmulas.
+- El generador se carga sólo al pulsar el botón. No se añade al paquete inicial del catálogo.
+- **Excel es un informe, no una copia restaurable.** Para recuperar o trasladar los registros con todos sus datos utiliza **Exportar JSON** e **Importar**. No se admite importar Excel.
+
+### Copia JSON restaurable
+
+**Exportar JSON** descarga tus registros, pero nunca contraseñas, tokens de sesión ni identificadores de propietario. Los archivos contienen datos personales de tu colección: guárdalos en un lugar seguro y no los subas a un repositorio público.
 
 **Importar** valida formato, cantidades, idioma, variante e identidad de carta. Antes de escribir solicita confirmación. Reemplaza cantidad, notas, valoración y ficha de coincidencias exactas (carta + idioma + variante + conservación); no borra otras cartas ni suma duplicados. La importación de cada archivo es transaccional. Exporta antes de importar si quieres conservar el estado previo.
 
@@ -165,6 +196,7 @@ npm run test:e2e
 ```
 
 - Las pruebas unitarias verifican precios, variantes, validación, copias y consultas del catálogo.
+- Las pruebas de Excel vuelven a leer el archivo generado y comprueban importes numéricos, celdas vacías, cero manual, Unicode y nombres que parecen fórmulas. La descarga se prueba también en móvil y escritorio.
 - Las pruebas SQL ejecutan la migración sobre PostgreSQL embebido (PGlite), con roles independientes para comprobar RLS, sumas, importación atómica e intentos de acceso entre cuentas.
 - Las pruebas de navegador cubren móvil/escritorio, errores del catálogo y el flujo de iniciar sesión, añadir, recargar, editar, exportar, importar, eliminar y cerrar sesión.
 - Las pruebas de navegador simulan las respuestas de TCGdex/Supabase: son deterministas y no necesitan claves ni envían datos reales. **No sustituyen una prueba final con tu proyecto Supabase y su correo configurados.**
@@ -181,4 +213,4 @@ npm run test:e2e
 
 ## Atribución
 
-Proyecto independiente, sin afiliación con Pokémon, Nintendo, Creatures, GAME FREAK, Cardmarket ni TCGdex. Marcas e imágenes pertenecen a sus titulares. Consulta las condiciones y licencias de los proveedores antes de publicar comercialmente o redistribuir datos. La ilustración decorativa de la cabecera es un diseño propio, no una carta real.
+Proyecto independiente, sin afiliación con Pokémon, Nintendo, Creatures, GAME FREAK, Cardmarket ni TCGdex. Marcas e imágenes pertenecen a sus titulares. Consulta las condiciones y licencias de los proveedores antes de publicar comercialmente o redistribuir datos. El dispositivo decorativo de la cabecera y los motivos geométricos se dibujan con CSS/SVG propios, sin utilizar un logotipo oficial ni presentarse como una aplicación oficial.

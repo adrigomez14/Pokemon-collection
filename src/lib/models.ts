@@ -20,11 +20,18 @@ export const briefSchema = z.object({
   id: z.string().min(1).max(100), name: z.string().min(1).max(200),
   localId: z.string().max(50), image: z.string().url().nullish(),
 })
+const detailedVariantSchema = z.object({
+  type: z.string(), size: z.string().nullish(), subtype: z.string().nullish(), stamp: z.array(z.string()).nullish(),
+  thirdParty: z.object({ cardmarket: z.number().int().positive().nullish() }).nullish(),
+  pricing: z.object({ cardmarket: marketSchema.nullish() }).nullish(),
+})
 export const cardSchema = briefSchema.extend({
   set: z.object({ id: z.string(), name: z.string() }),
   rarity: z.string().nullish(),
   variants: z.object({ normal: z.boolean().optional(), holo: z.boolean().optional(), reverse: z.boolean().optional(), firstEdition: z.boolean().optional() }).nullish(),
   pricing: z.object({ cardmarket: marketSchema.nullish() }).nullish(),
+  // Conservar la identidad de variante; no inferirla a partir del precio general.
+  variants_detailed: z.array(detailedVariantSchema).nullish(),
 })
 export type CardBrief = z.infer<typeof briefSchema>
 export type Card = z.infer<typeof cardSchema>
@@ -55,14 +62,39 @@ export const backupSchema = z.object({
   version: z.literal(1), exportedAt: z.string(), entries: z.array(entryInputSchema).max(3000),
 })
 
-/** Referencia del proveedor, nunca una tasación por idioma o conservación. */
+/** Solo permite el precio general cuando hay una única impresión holo inequívoca. */
+function exclusiveHoloProduct(card: Card) {
+  if (card.variants?.holo !== true || card.variants.normal !== false || card.variants.reverse !== false || card.variants.firstEdition !== false) return null
+  if (card.variants_detailed?.length !== 1) return null
+  const detail = card.variants_detailed[0]
+  if (detail.type !== 'holo' || !['standard', 'estándar'].includes(detail.size ?? '') || detail.subtype || detail.stamp?.length) return null
+  const market = detail.pricing?.cardmarket
+  const product = detail.thirdParty?.cardmarket
+  if (!product || market?.idProduct !== product || market.unit !== 'EUR') return null
+  if (card.pricing?.cardmarket?.idProduct && card.pricing.cardmarket.idProduct !== product) return null
+  return market
+}
+
+const positivePrice = (value?: number | null) => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+
+/** Referencias generales, nunca una tasación ni una oferta filtrada por idioma. */
+export function marketQuote(card: Card, variant: Variant) {
+  const exclusive = variant === 'holo' ? exclusiveHoloProduct(card) : null
+  const market = exclusive ?? card.pricing?.cardmarket
+  const empty = { value: null, low: null, updated: market?.updated, generalProduct: false }
+  if (!market || market.unit !== 'EUR' || variant === 'reverse' || variant === 'firstEdition') return empty
+  const value = positivePrice(variant === 'normal' ? market.trend : market['trend-holo'])
+  const low = positivePrice(variant === 'normal' ? market.low : market['low-holo'])
+  return {
+    value: value ?? (exclusive ? positivePrice(exclusive.trend) : null),
+    low: low ?? (exclusive ? positivePrice(exclusive.low) : null),
+    updated: market.updated,
+    generalProduct: Boolean(exclusive && ((value === null && positivePrice(exclusive.trend) !== null) || (low === null && positivePrice(exclusive.low) !== null))),
+  }
+}
+
 export function marketValue(card: Card, variant: Variant): number | null {
-  const market = card.pricing?.cardmarket
-  if (!market || market.unit !== 'EUR') return null
-  // No inferir precios reverse/primera edición a partir de otra variante.
-  const value = variant === 'normal' ? market.trend : variant === 'holo' ? market['trend-holo'] : null
-  // Un cero del feed no demuestra que una carta no tenga valor: no tasarlo como una venta gratuita.
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+  return marketQuote(card, variant).value
 }
 
 export function entryValue(entry: EntryInput) {
@@ -71,10 +103,7 @@ export function entryValue(entry: EntryInput) {
 
 /** Mínimo general del feed; no filtra por idioma ni conservación y no sustituye la valoración. */
 export function marketLow(card: Card, variant: Variant): number | null {
-  const market = card.pricing?.cardmarket
-  if (!market || market.unit !== 'EUR') return null
-  const value = variant === 'normal' ? market.low : variant === 'holo' ? market['low-holo'] : null
-  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+  return marketQuote(card, variant).low
 }
 
 export function collectionStats(entries: EntryInput[]) {
