@@ -15,13 +15,22 @@ export function PrivacyPage() {
       </ul>
       <p>La prestación de la cuenta y la gestión de la colección y de las listas de deseos se basan en la ejecución del servicio solicitado. La atención de consultas vinculadas al servicio se basa en esa relación o en las medidas previas que solicites; otras comunicaciones y la protección frente a abusos se atienden sobre el interés legítimo de responder y mantener el servicio seguro, sujeto a la ponderación correspondiente. El contacto es voluntario y no se utiliza para enviar publicidad.</p>
     </section>
+    <section aria-labelledby="privacy-ads"><h2 id="privacy-ads">Uso de Cookies y Publicidad (Google AdSense)</h2>
+      <p>Utilizamos proveedores de terceros, incluido Google, para mostrar anuncios cuando visitas nuestro sitio web. Estos proveedores pueden utilizar información recopilada durante tus visitas a este y otros sitios web (sin incluir tu nombre, dirección, dirección de correo electrónico o número de teléfono) para ofrecer anuncios de productos y servicios que te resulten interesantes.</p>
+      <ul>
+        <li>Google, como proveedor asociado, utiliza cookies para publicar anuncios en nuestro sitio web.</li>
+        <li>El uso de la cookie DART permite a Google y a sus socios mostrar anuncios basados en las visitas de los usuarios a este sitio u otros sitios de Internet.</li>
+        <li>Los usuarios pueden inhabilitar el uso de la cookie DART accediendo a la política de privacidad de la red de contenido y de anuncios de Google.</li>
+      </ul>
+      <p>Asimismo, puedes inhabilitar la publicidad personalizada visitando la <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer">Configuración de anuncios de Google</a>. También puedes configurar que los proveedores externos utilicen las cookies para la publicidad personalizada visitando <a href="https://www.aboutads.info" target="_blank" rel="noopener noreferrer">www.aboutads.info</a>.</p>
+    </section>
     <section aria-labelledby="privacy-providers"><h2 id="privacy-providers">Proveedores y enlaces externos</h2>
       <p>Se utilizan Supabase para autenticación y base de datos, Vercel para alojamiento y funciones del servicio, y Google SMTP/Gmail para el envío o recepción de correos y notificaciones. Google Fonts sirve tipografías y TCGdex proporciona información e imágenes del catálogo; al solicitar estos recursos, sus servidores pueden recibir datos técnicos de conexión.</p>
       <p>Los enlaces a Cardmarket abren un sitio externo con sus propias condiciones y política de privacidad. No es necesario acceder a él para gestionar la colección.</p>
       <p>Los proveedores y sus subencargados pueden tratar datos fuera de tu país, incluida la Unión Europea. Puedes solicitar información sobre las ubicaciones y garantías aplicables escribiendo al contacto de privacidad. No se afirma que todos los datos permanezcan en la Unión Europea.</p>
     </section>
     <section aria-labelledby="privacy-storage"><h2 id="privacy-storage">Almacenamiento técnico en el navegador</h2>
-      <p>Se utiliza almacenamiento local del navegador (localStorage) para mantener la sesión. La aplicación no incorpora seguimiento publicitario. Si se añaden tecnologías no necesarias, se actualizará esta información y se solicitará el consentimiento que corresponda antes de activarlas.</p>
+      <p>Se utiliza almacenamiento local del navegador (localStorage) para mantener la sesión y gestionar preferencias técnicas o de anuncios. Si se añaden otras tecnologías no necesarias, se actualizará esta información y se solicitará el consentimiento que corresponda antes de activarlas.</p>
       <p>Puedes cerrar la sesión o borrar los datos del sitio desde tu navegador. Borrar el almacenamiento local no elimina tu cuenta, la colección ni las listas de deseos guardadas en la nube.</p>
     </section>
     <section aria-labelledby="privacy-retention"><h2 id="privacy-retention">Durante cuánto tiempo</h2>
