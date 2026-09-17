@@ -21,7 +21,7 @@ export function CollectionSummary({ entries, stats, onExplore }: { entries: Entr
 
   return <section className="hero trainer-hero collection-hero" aria-label="Tu archivo de entrenador">
     <div className="hero-copy">
-      <span className="eyebrow"><span className="live-dot" />TU ARCHIVO DE ENTRENADOR</span>
+      <span className="eyebrow"><span className="live-dot" />TU COLECCION DE ENTRENADOR</span>
       {hasCards
         ? <h1>{stats.copies.toLocaleString('es-ES')} {stats.copies === 1 ? 'carta guardada' : 'cartas guardadas'}.<br /><span>Una historia en cada carta.</span></h1>
         : <h1>Tu colección<br /><span>empieza con una carta.</span></h1>}
