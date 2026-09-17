@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, Heart, LockKeyhole, Plus, Trash2, ArrowRight } from 'lucide-react'
+import { ExternalLink, Heart, LockKeyhole, Plus, Trash2, ArrowRight, ShieldCheck, Sparkles, BookOpen } from 'lucide-react'
 import { languages, type CardBrief, type Language } from '../lib/models'
 import {
   addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists, removeWishlistItem,
@@ -264,6 +264,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
   const totalWishedItems = data?.items.length ?? 0
   const totalLists = data?.lists.length ?? 0
   const featuredItem = data?.items[0]
+  const hasCards = totalWishedItems > 0
 
   const counts = useMemo(() => {
     const result = new Map<string, number>()
@@ -277,239 +278,159 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
     return confirmed
   }
 
-  return <section className="wishlist-page" aria-labelledby={headingId} style={{ padding: '24px 0' }}>
-    
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr 350px',
-      gap: '40px',
-      alignItems: 'center',
-      marginBottom: '40px',
-      padding: '48px',
-      background: 'radial-gradient(circle at 70% 30%, #1e364d 0%, #0d1b2a 100%)',
-      borderRadius: '32px',
-      border: '1px solid rgba(255, 255, 255, 0.05)',
-      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-    }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>
-          LAS CARTAS DE TUS DESEOS
+  return <>
+    {/* Nuevo Hero usando las clases de CollectionSummary */}
+    <section className="hero trainer-hero collection-hero" aria-labelledby={headingId}>
+      <div className="hero-copy">
+        <span className="eyebrow"><span className="live-dot" />TUS LISTAS DE DESEOS</span>
+        {hasCards
+          ? <h1 id={headingId}>{totalWishedItems.toLocaleString('es-ES')} {totalWishedItems === 1 ? 'carta guardada' : 'cartas guardadas'}.<br /><span>Una historia en cada carta.</span></h1>
+          : <h1 id={headingId}>Tus listas<br /><span>empiezan con una carta.</span></h1>}
+        <p>{hasCards
+          ? 'Cada hallazgo tiene su sitio. Revisa tus listas privadas, organiza tus objetivos de compra y mantén el seguimiento sin alterar tu colección principal.'
+          : 'Organiza tus próximos objetivos. Explora el catálogo y añade las cartas que buscas a tus listas privadas.'}</p>
+        
+        <div className="hero-actions">
+          <button className="primary" onClick={onExploreCatalog}>Explorar catálogo <ArrowRight size={18} /></button>
+          <span className="hero-note"><ShieldCheck size={16} aria-hidden="true" />Tu colección, en tu cuenta</span>
         </div>
         
-        <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#ffffff' }}>
-          {totalWishedItems} {totalWishedItems === 1 ? 'carta guardada.' : 'cartas guardadas.'}
-          <span style={{ display: 'block', color: '#facc15', fontWeight: 700, marginTop: '4px' }}>Una historia en cada carta.</span>
-        </h1>
-        
-        <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px', margin: '16px 0 32px 0' }}>
-          Cada hallazgo tiene su sitio. Revisa tus listas privadas, organiza tus objetivos de compra y mantén el seguimiento sin alterar tu colección principal.
-        </p>
-
-        <div style={{ marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button 
-            type="button" 
-            onClick={onExploreCatalog}
-            style={{
-              background: '#facc15',
-              color: '#0f172a',
-              fontWeight: 700,
-              fontSize: '0.95rem',
-              padding: '14px 24px',
-              borderRadius: '10px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '10px',
-              border: 'none',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(250, 204, 21, 0.2)'
-            }}
-          >
-            Explorar catálogo <ArrowRight size={18} />
-          </button>
-          <span style={{ color: '#94a3b8', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <LockKeyhole size={16} /> Tu colección, en tu cuenta
-          </span>
-        </div>
-
         {userId && data && (
-          <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
-              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Listas creadas</span>
-              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ffffff' }}>{totalLists}</span>
-            </div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
-              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Total en deseos</span>
-              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#facc15' }}>{totalWishedItems}</span>
-            </div>
-          </div>
+          <dl className="collection-passport">
+            <div><dt><BookOpen size={14} aria-hidden="true" />Listas creadas</dt><dd>{totalLists}</dd></div>
+            <div><dt><Heart size={14} aria-hidden="true" />En deseos</dt><dd>{totalWishedItems.toLocaleString('es-ES')}</dd></div>
+          </dl>
         )}
       </div>
-
-      {featuredItem ? (
-        <div style={{
-          backgroundColor: '#e33545',
-          borderRadius: '20px',
-          padding: '24px 20px',
-          position: 'relative',
-          boxShadow: 'inset -8px -8px 15px rgba(0, 0, 0, 0.2), inset 8px 8px 15px rgba(255, 255, 255, 0.3), 15px 20px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 1px #ff5a69',
-          color: '#0f172a'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', padding: '0 4px' }}>
-            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'radial-gradient(circle at 30% 30%, #b2ffff, #008080)', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.3)', marginRight: '8px' }}></div>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffca28', boxShadow: '0 1px 2px rgba(0,0,0,0.3)', marginRight: '6px' }}></div>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}></div>
-            <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 800, color: '#7a1520', letterSpacing: '0.05em' }}>POKÉFOLIO / TCG</span>
-          </div>
-
-          <div style={{ 
-            background: '#f7f9f8', 
-            borderRadius: '12px', 
-            padding: '16px',
-            boxShadow: 'inset 0 4px 8px rgba(0, 0, 0, 0.1), 0 2px 0 rgba(255,255,255, 0.5)'
-          }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              ✨ CARTA DESTACADA
-            </div>
-            
-            <div style={{ background: '#e0e9e5', borderRadius: '10px', padding: '16px', textAlign: 'center', marginBottom: '16px' }}>
-              <div style={{ maxHeight: '220px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
-                <CardImage card={featuredItem.card_snapshot} />
-              </div>
-            </div>
-
-            <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a', marginBottom: '4px' }}>
-              {featuredItem.card_snapshot.name}
-            </div>
-            <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px', display: 'flex', gap: '8px' }}>
-              <span>N.º {featuredItem.card_snapshot.localId}</span>
-              <span style={{ background: 'white', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '0.75rem' }}>{languages[featuredItem.language]}</span>
-            </div>
-
-            <button 
-              type="button" 
-              onClick={() => onOpenCard(featuredItem.card_snapshot, featuredItem.language)}
-              style={{
-                width: '100%',
-                background: 'transparent',
-                color: '#64748b',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                padding: '10px',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              Ver detalles de la carta
-            </button>
-          </div>
+      
+      <aside className="collection-display" aria-label="Carta destacada de tus listas">
+        <div className="collection-device-top">
+          <span className="collection-device-lights" aria-hidden="true"><i /><i /><i /></span>
+          <span>POKÉFOLIO / TCG</span>
         </div>
-      ) : (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '2px dashed rgba(255, 255, 255, 0.1)',
-          borderRadius: '20px',
-          padding: '32px',
-          textAlign: 'center',
-          color: '#94a3b8'
-        }}>
-          <Heart size={32} style={{ margin: '0 auto 12px auto', opacity: 0.4 }} />
-          <p style={{ fontSize: '0.9rem', margin: 0 }}>Añade cartas a tus listas para verlas destacadas aquí.</p>
-        </div>
-      )}
-    </div>
-
-    {!userId ? <div className="wishlist-empty">
-      <h2>Tus próximas cartas, en un solo lugar</h2><p>Inicia sesión para crear varias listas privadas y guardar cartas por idioma.</p>
-      <button type="button" className="wishlist-button wishlist-button-primary" onClick={onAuth}>Iniciar sesión</button>
-    </div> : <>
-      <WishlistStatus />
-      {data && <>
-        <WishlistNameForm onSave={(name) => run((owner, signal) => createWishlist(owner, name, signal))} />
-        {!data.lists.length ? !error && <div className="wishlist-empty"><h2>Aún no tienes listas</h2><p>Crea tu primera lista privada. Después añade cartas con el corazón del catálogo.</p></div> :
-          <div className="wishlist-layout">
-            <nav className="wishlist-sidebar" aria-label="Mis listas privadas">
-              <h2>Mis listas</h2>
-              <ul className="wishlist-list-nav">{data.lists.map((list) => <li key={list.id}>
-                <button type="button" className="wishlist-list-button" aria-current={selected?.id === list.id ? 'true' : undefined}
-                  disabled={pending} onClick={() => setSelectedId(list.id)}>
-                  <span>{list.name}</span><span className="wishlist-count" aria-label={`${counts.get(list.id) ?? 0} cartas`}>
-                    {counts.get(list.id) ?? 0}
-                  </span>
-                </button>
-              </li>)}</ul>
-            </nav>
-            {selected && <section className="wishlist-content" aria-label={`Lista ${selected.name}`}>
-              <div className="wishlist-list-heading"><div><h2>{selected.name}</h2><p>{items?.length} cartas · Lista privada</p></div>
-                <div className="wishlist-actions">
-                  <button type="button" className="wishlist-button" disabled={!canWrite} onClick={() => setDialog({ kind: 'rename', list: selected })}>Renombrar</button>
-                  <button type="button" className="wishlist-button wishlist-button-danger" disabled={!canWrite} onClick={() => setDialog({ kind: 'delete', list: selected })}>Eliminar lista</button>
-                </div>
-              </div>
-
-              <div className="cardmarket-referral-banner" style={{
-                background: "var(--background-secondary, #f8f9fa)",
-                border: "1px solid var(--border-color, #e9ecef)",
-                borderRadius: "8px",
-                padding: "12px 16px",
-                margin: "16px 0",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "12px",
-                fontSize: "0.9rem"
-              }}>
-                <div>
-                  <strong>¿Vas a comprar cartas de esta lista?</strong>
-                  <p style={{ margin: "4px 0 0 0", color: "var(--text-muted, #6c757d)" }}>
-                    Si aún no tienes cuenta en Cardmarket, puedes apoyarnos introduciendo el usuario <code>daxter14</code> al registrarte.
-                  </p>
-                </div>
-                <a 
-                  href="https://www.cardmarket.com/es/Pokemon" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="wishlist-button"
-                  style={{ whiteSpace: "nowrap", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
-                >
-                  Ir a Cardmarket <ExternalLink size={14} />
-                </a>
-              </div>
-
-              {items?.length === 0 ? !error && <div className="wishlist-empty"><h3>Esta lista aún no tiene cartas</h3><p>Abre el corazón de una carta del catálogo y marca esta lista.</p></div> :
-                <ul className="wishlist-cards">{items?.map((item) => <li className="wishlist-card" key={wishlistCardKey(item.card_id, item.language)}>
-                  <button type="button" className="wishlist-card-open" aria-label={`Abrir ${item.card_snapshot.name} en ${languages[item.language]}`}
-                    onClick={() => onOpenCard(item.card_snapshot, item.language)}>
-                    <CardImage card={item.card_snapshot} />
-                    <span className="wishlist-card-info"><strong>{item.card_snapshot.name}</strong><span>{languages[item.language]}</span><small>N.º {item.card_snapshot.localId}</small></span>
+        <div className="collection-feature">
+          <p className="collection-feature-label"><Sparkles size={13} aria-hidden="true" />{featuredItem ? 'CARTA DESTACADA' : 'TU PRIMER OBJETIVO'}</p>
+          <div className="collection-feature-body">
+            <div className="collection-feature-media">
+              {featuredItem ? <CardImage card={featuredItem.card_snapshot} /> : <div className="collection-card-slot" aria-hidden="true"><span className="pokeball" /><span>EL PRIMER HUECO<br />ES PARA TU FAVORITA</span></div>}
+            </div>
+            <div className="collection-feature-detail">
+              <h2>{featuredItem ? featuredItem.card_snapshot.name : 'Una favorita por buscar'}</h2>
+              <p className="collection-feature-set">{featuredItem ? `${featuredItem.card_snapshot.set.name} · N.º ${featuredItem.card_snapshot.localId}` : 'Búscala en el catálogo y añádela a tu lista.'}</p>
+              {featuredItem && <p className="collection-feature-tags"><span>{languages[featuredItem.language]}</span></p>}
+              <div className="collection-feature-value">
+                {featuredItem ? (
+                  <button 
+                    type="button" 
+                    className="wishlist-button" 
+                    onClick={() => onOpenCard(featuredItem.card_snapshot, featuredItem.language)}
+                    style={{ width: '100%', marginTop: '8px' }}
+                  >
+                    Ver detalles de la carta
                   </button>
-                  <button type="button" className="wishlist-button wishlist-card-remove" disabled={!canWrite}
-                    aria-label={`Quitar ${item.card_snapshot.name} en ${languages[item.language]} de ${selected.name}`}
-                    onClick={() => setDialog({ kind: 'remove', list: selected, item })}><Trash2 size={16} aria-hidden="true" />Quitar de esta lista</button>
-                </li>)}</ul>}
-            </section>}
-          </div>}
-      </>}
-      {!error && <div className="wishlist-actions"><button type="button" className="wishlist-button" disabled={fetching || pending} onClick={() => { void retry() }}>Actualizar listas</button></div>}
-    </>}
-    {userId && dialog && <Modal title={dialog.kind === 'rename' ? 'Renombrar lista' : dialog.kind === 'delete' ? 'Eliminar lista privada' : 'Quitar carta de esta lista'} busy={pending} onClose={() => setDialog(null)}>
-      <div className="wishlist-dialog">
+                ) : (
+                  <strong>Tu aventura empieza aquí</strong>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        <p className="collection-device-note"><LockKeyhole size={13} aria-hidden="true" />Solo tú puedes ver tus listas privadas.</p>
+      </aside>
+    </section>
+
+    {/* Resto de la página (Gestión de listas) */}
+    <section className="wishlist-page">
+      {!userId ? <div className="wishlist-empty">
+        <h2>Tus próximas cartas, en un solo lugar</h2><p>Inicia sesión para crear varias listas privadas y guardar cartas por idioma.</p>
+        <button type="button" className="wishlist-button wishlist-button-primary" onClick={onAuth}>Iniciar sesión</button>
+      </div> : <>
         <WishlistStatus />
-        {dialog.kind === 'rename' ? <WishlistNameForm initialName={dialog.list.name} label="Nombre de la lista" submitLabel="Guardar nombre"
-          onSave={(name) => save((owner, signal) => renameWishlist(owner, dialog.list.id, name, signal))} /> : <>
-          <p>{dialog.kind === 'delete' ? <>¿Eliminar <strong>{dialog.list.name}</strong> y todas sus cartas guardadas?</> :
-            <>¿Quitar <strong>{dialog.item.card_snapshot.name}</strong> ({languages[dialog.item.language]}) de <strong>{dialog.list.name}</strong>?</>}</p>
-          <p className="wishlist-hint">No se modificará tu colección ni ninguna otra lista.{dialog.kind === 'delete' && ' Esta eliminación no se puede deshacer.'}</p>
-          <button type="button" className="wishlist-button wishlist-button-danger" disabled={!canWrite} onClick={() => {
-            void save((owner, signal) => dialog.kind === 'delete'
-              ? deleteWishlist(owner, dialog.list.id, signal)
-              : removeWishlistItem(owner, dialog.list.id, dialog.item.card_id, dialog.item.language, signal))
-          }}>{dialog.kind === 'delete' ? 'Confirmar eliminación' : 'Confirmar quitar carta'}</button>
+        {data && <>
+          <WishlistNameForm onSave={(name) => run((owner, signal) => createWishlist(owner, name, signal))} />
+          {!data.lists.length ? !error && <div className="wishlist-empty"><h2>Aún no tienes listas</h2><p>Crea tu primera lista privada. Después añade cartas con el corazón del catálogo.</p></div> :
+            <div className="wishlist-layout">
+              <nav className="wishlist-sidebar" aria-label="Mis listas privadas">
+                <h2>Mis listas</h2>
+                <ul className="wishlist-list-nav">{data.lists.map((list) => <li key={list.id}>
+                  <button type="button" className="wishlist-list-button" aria-current={selected?.id === list.id ? 'true' : undefined}
+                    disabled={pending} onClick={() => setSelectedId(list.id)}>
+                    <span>{list.name}</span><span className="wishlist-count" aria-label={`${counts.get(list.id) ?? 0} cartas`}>
+                      {counts.get(list.id) ?? 0}
+                    </span>
+                  </button>
+                </li>)}</ul>
+              </nav>
+              {selected && <section className="wishlist-content" aria-label={`Lista ${selected.name}`}>
+                <div className="wishlist-list-heading"><div><h2>{selected.name}</h2><p>{items?.length} cartas · Lista privada</p></div>
+                  <div className="wishlist-actions">
+                    <button type="button" className="wishlist-button" disabled={!canWrite} onClick={() => setDialog({ kind: 'rename', list: selected })}>Renombrar</button>
+                    <button type="button" className="wishlist-button wishlist-button-danger" disabled={!canWrite} onClick={() => setDialog({ kind: 'delete', list: selected })}>Eliminar lista</button>
+                  </div>
+                </div>
+
+                <div className="cardmarket-referral-banner" style={{
+                  background: "var(--background-secondary, #f8f9fa)",
+                  border: "1px solid var(--border-color, #e9ecef)",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  margin: "16px 0",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  fontSize: "0.9rem"
+                }}>
+                  <div>
+                    <strong>¿Vas a comprar cartas de esta lista?</strong>
+                    <p style={{ margin: "4px 0 0 0", color: "var(--text-muted, #6c757d)" }}>
+                      Si aún no tienes cuenta en Cardmarket, puedes apoyarnos introduciendo el usuario <code>daxter14</code> al registrarte.
+                    </p>
+                  </div>
+                  <a 
+                    href="https://www.cardmarket.com/es/Pokemon" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="wishlist-button"
+                    style={{ whiteSpace: "nowrap", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                  >
+                    Ir a Cardmarket <ExternalLink size={14} />
+                  </a>
+                </div>
+
+                {items?.length === 0 ? !error && <div className="wishlist-empty"><h3>Esta lista aún no tiene cartas</h3><p>Abre el corazón de una carta del catálogo y marca esta lista.</p></div> :
+                  <ul className="wishlist-cards">{items?.map((item) => <li className="wishlist-card" key={wishlistCardKey(item.card_id, item.language)}>
+                    <button type="button" className="wishlist-card-open" aria-label={`Abrir ${item.card_snapshot.name} en ${languages[item.language]}`}
+                      onClick={() => onOpenCard(item.card_snapshot, item.language)}>
+                      <CardImage card={item.card_snapshot} />
+                      <span className="wishlist-card-info"><strong>{item.card_snapshot.name}</strong><span>{languages[item.language]}</span><small>N.º {item.card_snapshot.localId}</small></span>
+                    </button>
+                    <button type="button" className="wishlist-button wishlist-card-remove" disabled={!canWrite}
+                      aria-label={`Quitar ${item.card_snapshot.name} en ${languages[item.language]} de ${selected.name}`}
+                      onClick={() => setDialog({ kind: 'remove', list: selected, item })}><Trash2 size={16} aria-hidden="true" />Quitar de esta lista</button>
+                  </li>)}</ul>}
+              </section>}
+            </div>}
         </>}
-        <button type="button" className="wishlist-button" disabled={pending} onClick={() => setDialog(null)}>Cancelar</button>
-      </div>
-    </Modal>}
-  </section>
+        {!error && <div className="wishlist-actions"><button type="button" className="wishlist-button" disabled={fetching || pending} onClick={() => { void retry() }}>Actualizar listas</button></div>}
+      </>}
+      {userId && dialog && <Modal title={dialog.kind === 'rename' ? 'Renombrar lista' : dialog.kind === 'delete' ? 'Eliminar lista privada' : 'Quitar carta de esta lista'} busy={pending} onClose={() => setDialog(null)}>
+        <div className="wishlist-dialog">
+          <WishlistStatus />
+          {dialog.kind === 'rename' ? <WishlistNameForm initialName={dialog.list.name} label="Nombre de la lista" submitLabel="Guardar nombre"
+            onSave={(name) => save((owner, signal) => renameWishlist(owner, dialog.list.id, name, signal))} /> : <>
+            <p>{dialog.kind === 'delete' ? <>¿Eliminar <strong>{dialog.list.name}</strong> y todas sus cartas guardadas?</> :
+              <>¿Quitar <strong>{dialog.item.card_snapshot.name}</strong> ({languages[dialog.item.language]}) de <strong>{dialog.list.name}</strong>?</>}</p>
+            <p className="wishlist-hint">No se modificará tu colección ni ninguna otra lista.{dialog.kind === 'delete' && ' Esta eliminación no se puede deshacer.'}</p>
+            <button type="button" className="wishlist-button wishlist-button-danger" disabled={!canWrite} onClick={() => {
+              void save((owner, signal) => dialog.kind === 'delete'
+                ? deleteWishlist(owner, dialog.list.id, signal)
+                : removeWishlistItem(owner, dialog.list.id, dialog.item.card_id, dialog.item.language, signal))
+            }}>{dialog.kind === 'delete' ? 'Confirmar eliminación' : 'Confirmar quitar carta'}</button>
+          </>}
+          <button type="button" className="wishlist-button" disabled={pending} onClick={() => setDialog(null)}>Cancelar</button>
+        </div>
+      </Modal>}
+    </section>
+  </>
 }
