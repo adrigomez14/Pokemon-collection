@@ -281,7 +281,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
 
   return <section className="wishlist-page" aria-labelledby={headingId} style={{ padding: '24px 0' }}>
     
-    {/* Cabecera estilo Archivo de Entrenador (idéntica a la segunda imagen en proporción) */}
+    {/* Cabecera estilo Archivo de Entrenador (con colores adaptados a fondo claro) */}
     <div style={{
       display: 'grid',
       gridTemplateColumns: '1fr 320px',
@@ -291,17 +291,17 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
     }}>
       {/* Columna izquierda: Títulos, subtítulo, botón principal y tarjetas de datos */}
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#22c55e', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#16a34a', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', display: 'inline-block' }}></span>
           TU ESPACIO PRIVADO
         </div>
         
-        <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#ffffff' }}>
+        <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#0f172a' }}>
           {totalWishedItems} {totalWishedItems === 1 ? 'carta guardada.' : 'cartas guardadas.'}
-          <span style={{ display: 'block', color: '#fbbf24', fontWeight: 700, marginTop: '4px' }}>Tus próximas adquisiciones.</span>
+          <span style={{ display: 'block', color: '#d97706', fontWeight: 700, marginTop: '4px' }}>Tus próximas adquisiciones.</span>
         </h1>
         
-        <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px', margin: '16px 0 24px 0' }}>
+        <p style={{ color: '#475569', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px', margin: '16px 0 24px 0' }}>
           Cada hallazgo tiene su sitio. Revisa tus listas privadas, organiza tus objetivos de compra y mantén el seguimiento sin alterar tu colección principal.
         </p>
 
@@ -335,13 +335,13 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
         {/* Bloque de tarjetas inferiores de estadísticas */}
         {userId && data && (
           <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
-              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Listas creadas</span>
-              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ffffff' }}>{totalLists}</span>
+            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 24px', minWidth: '150px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <span style={{ display: 'block', color: '#64748b', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Listas creadas</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>{totalLists}</span>
             </div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
-              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Total en deseos</span>
-              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ffffff' }}>{totalWishedItems}</span>
+            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 24px', minWidth: '150px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <span style={{ display: 'block', color: '#64748b', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Total en deseos</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>{totalWishedItems}</span>
             </div>
           </div>
         )}
@@ -353,7 +353,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
           background: '#dc2626',
           borderRadius: '20px',
           padding: '16px',
-          boxShadow: '0 25px 30px -10px rgba(0, 0, 0, 0.4)',
+          boxShadow: '0 25px 30px -10px rgba(0, 0, 0, 0.2)',
           color: '#0f172a'
         }}>
           {/* Detalles superiores tipo dispositivo */}
@@ -404,12 +404,12 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
         </div>
       ) : (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '2px dashed rgba(255, 255, 255, 0.1)',
+          background: '#ffffff',
+          border: '2px dashed #cbd5e1',
           borderRadius: '20px',
           padding: '32px',
           textAlign: 'center',
-          color: '#94a3b8'
+          color: '#64748b'
         }}>
           <Heart size={32} style={{ margin: '0 auto 12px auto', opacity: 0.4 }} />
           <p style={{ fontSize: '0.9rem', margin: 0 }}>Añade cartas a tus listas para verlas destacadas aquí.</p>
