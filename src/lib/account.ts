@@ -1,4 +1,4 @@
-import { requireSupabase } from './supabase'
+import { clearDeletedAccountSession, requireSupabase } from './supabase'
 
 /** Resultado de un borrado confirmado por la base de datos, aunque falle el cierre local. */
 export type DeleteOwnAccountResult = { localSignOutFailed: boolean }
@@ -81,6 +81,9 @@ export async function deleteOwnAccount(
   }
   // La eliminación ya está confirmada: un fallo de signOut no debe convertirla en un error.
   try {
+    // scope: local también llama a /logout si queda un token. La cuenta ya no existe:
+    // retirar primero su sesión evita esperar a esa petición y sobrevivir a una recarga.
+    if (clearDeletedAccountSession(currentUserId) === 'different-user') return { localSignOutFailed: false }
     const current = await client.auth.getSession()
     if (current.error) return { localSignOutFailed: true }
     if (current.data.session?.user.id && current.data.session.user.id !== currentUserId) {

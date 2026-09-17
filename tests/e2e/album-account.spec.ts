@@ -153,6 +153,30 @@ test('gestiona contraseña y conserva la ruta pública de privacidad al recargar
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
+test('borrar expulsa sin depender de logout y no restaura la sesión al recargar', async ({ page }) => {
+  const state = await setup(page)
+  state.failDeletion = false
+  let logoutRequests = 0
+  await page.route('https://pokefolio-test.supabase.co/auth/v1/logout**', (route) => {
+    logoutRequests++
+    return route.abort()
+  })
+  await page.evaluate(() => localStorage.setItem('unrelated-preference', 'keep'))
+  await page.getByRole('navigation').getByRole('button', { name: /Mi colección/ }).click()
+  await page.getByRole('button', { name: 'Gestionar cuenta', exact: true }).click()
+  await page.getByLabel('Contraseña actual para eliminar la cuenta').fill('password-test-only-123')
+  await page.getByLabel('Escribe ELIMINAR para confirmar').fill('ELIMINAR')
+  await page.getByRole('button', { name: 'Eliminar mi cuenta definitivamente' }).click()
+  await expect(page.getByRole('button', { name: 'Mi cuenta', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(/\/catalogo$/)
+  expect(logoutRequests).toBe(0)
+  expect(await page.evaluate(() => localStorage.getItem('sb-pokefolio-test-auth-token'))).toBeNull()
+  expect(await page.evaluate(() => localStorage.getItem('unrelated-preference'))).toBe('keep')
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Mi cuenta', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cerrar sesión', exact: true })).toHaveCount(0)
+})
+
 test('exporta desde la cuenta sin superponer ventanas', async ({ page }) => {
   await setup(page)
   await page.getByRole('navigation').getByRole('button', { name: /Mi colección/ }).click()

@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deleteOwnAccount, updateOwnPassword } from '../src/lib/account'
 
-const { client, requireClient, rpcResult } = vi.hoisted(() => {
+const { client, requireClient, rpcResult, clearSession } = vi.hoisted(() => {
   const client = {
     auth: { getUser: vi.fn(), getSession: vi.fn(), signInWithPassword: vi.fn(), updateUser: vi.fn(), signOut: vi.fn() },
     rpc: vi.fn(),
   }
-  return { client, requireClient: vi.fn(() => client), rpcResult: vi.fn() }
+  return { client, requireClient: vi.fn(() => client), rpcResult: vi.fn(), clearSession: vi.fn() }
 })
 // Evita cargar la configuración de Supabase o realizar conexiones reales.
-vi.mock('../src/lib/supabase', () => ({ requireSupabase: requireClient }))
+vi.mock('../src/lib/supabase', () => ({ requireSupabase: requireClient, clearDeletedAccountSession: clearSession }))
 
 const id = '11111111-1111-4111-8111-111111111111'
 const email = 'test@example.com'
@@ -21,6 +21,7 @@ const remove = () => deleteOwnAccount(id, email, currentPassword, 'ELIMINAR')
 beforeEach(() => {
   vi.resetAllMocks()
   requireClient.mockReturnValue(client)
+  clearSession.mockReturnValue('cleared')
   client.auth.getUser.mockResolvedValue({ data: { user: { id } }, error: null })
   client.auth.signInWithPassword.mockResolvedValue({ data: { user: { id }, session: { access_token: 'fresh-test-token' } }, error: null })
   client.auth.getSession.mockResolvedValue({ data: { session: { user: { id } } }, error: null })
@@ -71,6 +72,9 @@ describe('Gestión de la propia cuenta', () => {
     expect(client.auth.signInWithPassword.mock.invocationCallOrder[0]).toBeLessThan(client.rpc.mock.invocationCallOrder[0])
     expect(client.auth.signOut).toHaveBeenCalledExactlyOnceWith({ scope: 'local' })
     expect(client.rpc.mock.invocationCallOrder[0]).toBeLessThan(client.auth.signOut.mock.invocationCallOrder[0])
+    expect(clearSession).toHaveBeenCalledExactlyOnceWith(id)
+    expect(client.rpc.mock.invocationCallOrder[0]).toBeLessThan(clearSession.mock.invocationCallOrder[0])
+    expect(clearSession.mock.invocationCallOrder[0]).toBeLessThan(client.auth.getSession.mock.invocationCallOrder[0])
   })
 
   it.each(['PGRST202', '42883'])('orienta sobre migración 005 si falta la RPC (%s)', async (code) => {
@@ -118,6 +122,7 @@ describe('Gestión de la propia cuenta', () => {
     rpcResult.mockResolvedValue({ error: { code: '42501', message: 'JWT password secret' } })
     await expect(remove()).rejects.toThrow('No se ha podido confirmar la eliminación.')
     expect(client.auth.signOut).not.toHaveBeenCalled()
+    expect(clearSession).not.toHaveBeenCalled()
   })
 
   it('sanitiza errores lanzados por red y cambio de contraseña', async () => {
@@ -138,5 +143,11 @@ describe('Gestión de la propia cuenta', () => {
     await expect(remove()).resolves.toEqual({ localSignOutFailed: false })
     expect(client.auth.signOut).not.toHaveBeenCalled()
     expect(rpcResult).toHaveBeenCalledWith('Authorization', 'Bearer fresh-test-token')
+  })
+  it('conserva una cuenta distinta detectada en el almacenamiento sin llamar a signOut', async () => {
+    clearSession.mockReturnValue('different-user')
+    await expect(remove()).resolves.toEqual({ localSignOutFailed: false })
+    expect(client.auth.getSession).not.toHaveBeenCalled()
+    expect(client.auth.signOut).not.toHaveBeenCalled()
   })
 })
