@@ -263,11 +263,8 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
   const selected = data?.lists.find((list) => list.id === selectedId) ?? data?.lists[0]
   const items = selected ? data?.items.filter((item) => item.list_id === selected.id) : undefined
 
-  // Métricas para las tarjetas de resumen
   const totalWishedItems = data?.items.length ?? 0
   const totalLists = data?.lists.length ?? 0
-  
-  // Encontrar una carta destacada (la última añadida o la primera disponible) para el visor de la derecha
   const featuredItem = data?.items[0]
 
   const counts = useMemo(() => {
@@ -282,109 +279,107 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
     return confirmed
   }
 
-  return <section className="wishlist-page" aria-labelledby={headingId}>
+  return <section className="wishlist-page" aria-labelledby={headingId} style={{ padding: '24px 0' }}>
     
-    {/* Cabecera estilo Archivo de Entrenador */}
-    <div className="trainer-header-container" style={{
+    {/* Cabecera estilo Archivo de Entrenador (idéntica a la segunda imagen en proporción) */}
+    <div style={{
       display: 'grid',
-      gridTemplateColumns: '1fr auto',
-      gap: '24px',
-      alignItems: 'center',
-      marginBottom: '32px'
+      gridTemplateColumns: '1fr 320px',
+      gap: '32px',
+      alignItems: 'start',
+      marginBottom: '40px'
     }}>
-      <header className="wishlist-heading" style={{ border: 'none', padding: 0, margin: 0 }}>
-        <div>
-          <p className="wishlist-private" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
-            TU ESPACIO PRIVADO
-          </p>
-          <h1 id={headingId} style={{ fontSize: '2.5rem', fontWeight: 800, margin: '8px 0 4px 0', lineHeight: 1.1 }}>
-            {totalWishedItems} {totalWishedItems === 1 ? 'carta guardada.' : 'cartas guardadas.'}
-            <span style={{ display: 'block', color: '#fbbf24', fontWeight: 700 }}>Tus próximas adquisiciones.</span>
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '1rem', maxWidth: '540px', marginTop: '12px' }}>
-            Organiza las cartas que buscas, controla tus listas privadas y mantén el seguimiento sin alterar tu colección principal.
-          </p>
+      {/* Columna izquierda: Títulos, subtítulo, botón principal y tarjetas de datos */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#22c55e', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+          TU ESPACIO PRIVADO
         </div>
+        
+        <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#ffffff' }}>
+          {totalWishedItems} {totalWishedItems === 1 ? 'carta guardada.' : 'cartas guardadas.'}
+          <span style={{ display: 'block', color: '#fbbf24', fontWeight: 700, marginTop: '4px' }}>Tus próximas adquisiciones.</span>
+        </h1>
+        
+        <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px', margin: '16px 0 24px 0' }}>
+          Cada hallazgo tiene su sitio. Revisa tus listas privadas, organiza tus objetivos de compra y mantén el seguimiento sin alterar tu colección principal.
+        </p>
 
-        {/* Botón de acción principal estilo amarillo */}
-        <div style={{ marginTop: '24px' }}>
+        {/* Botón amarillo principal */}
+        <div style={{ marginBottom: '32px' }}>
           <button 
             type="button" 
-            className="wishlist-button wishlist-button-primary" 
             onClick={onExploreCatalog}
             style={{
               background: '#fbbf24',
               color: '#0f172a',
               fontWeight: 700,
-              padding: '12px 20px',
-              borderRadius: '8px',
+              fontSize: '0.95rem',
+              padding: '14px 24px',
+              borderRadius: '10px',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '10px',
               border: 'none',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(251, 191, 36, 0.2)'
             }}
           >
             Explorar catálogo <ArrowRight size={18} />
           </button>
-          <span style={{ display: 'block', color: '#64748b', fontSize: '0.85rem', marginTop: '8px' }}>
-            🔒 Tus listas son privadas y solo tuyas
+          <span style={{ display: 'block', color: '#64748b', fontSize: '0.8rem', marginTop: '8px' }}>
+            🔒 Listas protegidas y 100% privadas para ti
           </span>
         </div>
 
-        {/* Tarjetas de estadísticas inferiores */}
+        {/* Bloque de tarjetas inferiores de estadísticas */}
         {userId && data && (
-          <div style={{ display: 'flex', gap: '16px', marginTop: '24px', flexWrap: 'wrap' }}>
-            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 20px', minWidth: '140px' }}>
-              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '4px' }}>Listas creadas</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc' }}>{totalLists}</span>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
+              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Listas creadas</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ffffff' }}>{totalLists}</span>
             </div>
-            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 20px', minWidth: '140px' }}>
-              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '4px' }}>Idiomas distintos</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc' }}>
-                {new Set(data.items.map(i => i.language)).size}
-              </span>
+            <div style={{ background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
+              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Total en deseos</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ffffff' }}>{totalWishedItems}</span>
             </div>
           </div>
         )}
-      </header>
+      </div>
 
-      {/* Tarjeta / Pokédex lateral derecha con carta destacada */}
-      {featuredItem && (
-        <div className="pokefolio-card-preview" style={{
+      {/* Columna derecha: Tarjeta estilo Pokéfolio con la carta destacada */}
+      {featuredItem ? (
+        <div style={{
           background: '#dc2626',
-          borderRadius: '16px',
+          borderRadius: '20px',
           padding: '16px',
-          width: '280px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
-          color: '#0f172a',
-          position: 'relative'
+          boxShadow: '0 25px 30px -10px rgba(0, 0, 0, 0.4)',
+          color: '#0f172a'
         }}>
-          {/* Detalles decorativos superiores tipo Pokédex */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+          {/* Detalles superiores tipo dispositivo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', padding: '0 4px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#60a5fa', border: '2px solid white' }}></div>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f87171' }}></div>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#facc15' }}></div>
             <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 800, color: 'white', letterSpacing: '0.05em' }}>WISHLIST / TCG</span>
           </div>
 
-          {/* Contenedor interior blanco */}
-          <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Heart size={12} fill="currentColor" color="#dc2626" /> Carta destacada en deseos
+          {/* Tarjeta interior blanca */}
+          <div style={{ background: '#f8fafc', borderRadius: '14px', padding: '14px' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Heart size={13} fill="currentColor" color="#dc2626" /> CARTA DESTACADA
             </div>
             
-            <div style={{ background: '#e2e8f0', borderRadius: '8px', padding: '8px', textAlign: 'center', marginBottom: '10px' }}>
-              <div style={{ maxHeight: '160px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ background: '#e2e8f0', borderRadius: '10px', padding: '10px', textAlign: 'center', marginBottom: '12px' }}>
+              <div style={{ maxHeight: '180px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
                 <CardImage card={featuredItem.card_snapshot} />
               </div>
             </div>
 
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a', marginBottom: '2px' }}>
+            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a', marginBottom: '2px' }}>
               {featuredItem.card_snapshot.name}
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
               N.º {featuredItem.card_snapshot.localId} · {languages[featuredItem.language]}
             </div>
 
@@ -396,16 +391,28 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
                 background: '#0f172a',
                 color: 'white',
                 border: 'none',
-                borderRadius: '6px',
-                padding: '8px',
-                fontSize: '0.85rem',
-                fontWeight: 600,
+                borderRadius: '8px',
+                padding: '10px',
+                fontSize: '0.9rem',
+                fontWeight: 700,
                 cursor: 'pointer'
               }}
             >
               Ver detalles de la carta
             </button>
           </div>
+        </div>
+      ) : (
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '2px dashed rgba(255, 255, 255, 0.1)',
+          borderRadius: '20px',
+          padding: '32px',
+          textAlign: 'center',
+          color: '#94a3b8'
+        }}>
+          <Heart size={32} style={{ margin: '0 auto 12px auto', opacity: 0.4 }} />
+          <p style={{ fontSize: '0.9rem', margin: 0 }}>Añade cartas a tus listas para verlas destacadas aquí.</p>
         </div>
       )}
     </div>
