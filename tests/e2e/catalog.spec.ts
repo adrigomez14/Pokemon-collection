@@ -25,6 +25,7 @@ test('inicia sin nombre y consulta la expansión más reciente sin fijar su ID',
   const url = new URL((await first).url())
   expect(url.searchParams.has('name')).toBe(false)
   expect(url.searchParams.get('set.id')).toBe('eq:latest-test')
+  await expect(page.getByLabel('Ordenar por', { exact: true })).toHaveValue('rarity-desc')
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   await expect(page.getByLabel('Expansión', { exact: true })).toHaveValue('__latest__')
   const all = page.waitForRequest((request) => {
@@ -97,7 +98,7 @@ test('incorpora expansiones nuevas al recargar y seleccionarlas elimina el nombr
   await page.getByLabel('Expansión', { exact: true }).selectOption('future-test')
   const url = new URL((await request).url())
   expect(url.searchParams.has('name')).toBe(false)
-  expect(url.searchParams.get('pagination:page')).toBe('1')
+  expect(url.searchParams.has('pagination:page')).toBe(false)
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
@@ -243,4 +244,34 @@ test('cambiar idioma elimina categorías y filtros traducidos de la consulta ant
   expect(url.searchParams.has('category')).toBe(false)
   await expect(page.getByLabel('Categoría de carta')).toHaveValue('')
   await expect(page.getByLabel('Nombre exacto', { exact: true })).not.toBeChecked()
+})
+
+test('ordena toda la expansión por rareza antes de paginar y permite volver al orden de catálogo', async ({ page }) => {
+  const cards = Array.from({ length: 30 }, (_, i) => ({ id: `base1-${i + 1}`, localId: String(i + 1), name: `Carta ${i + 1}`, rarity: i < 5 ? 'Rara Ilustración Especial' : 'Común' }))
+  await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => {
+    const url = new URL(route.request().url())
+    const rarity = url.searchParams.get('rarity')?.slice(3).split('|')
+    let result = rarity ? cards.filter((card) => rarity.includes(card.rarity)) : cards
+    if (url.searchParams.has('pagination:page')) {
+      const start = (Number(url.searchParams.get('pagination:page')) - 1) * 24
+      result = result.slice(start, start + 24)
+    }
+    return route.fulfill({ json: result })
+  })
+  await page.goto('/')
+  const tiles = page.getByLabel('Resultados del catálogo').getByRole('heading', { level: 3 })
+  await expect(tiles).toHaveCount(24)
+  await expect(tiles.first()).toHaveText('Carta 5')
+  await expect(tiles.nth(5)).toHaveText('Carta 30')
+  await page.getByRole('button', { name: 'Siguiente', exact: true }).click()
+  await expect(tiles).toHaveText(['Carta 11', 'Carta 10', 'Carta 9', 'Carta 8', 'Carta 7', 'Carta 6'])
+  await expect(page.getByRole('button', { name: 'Siguiente', exact: true })).toBeDisabled()
+  await page.getByLabel('Ordenar por', { exact: true }).selectOption('catalog')
+  await expect(tiles.first()).toHaveText('Carta 1')
+  await expect(tiles).toHaveCount(24)
+  await page.getByLabel('Ordenar por', { exact: true }).selectOption('rarity-desc')
+  await expect(tiles.first()).toHaveText('Carta 5')
+  await page.getByLabel('Expansión', { exact: true }).selectOption('')
+  await expect(page.getByLabel('Ordenar por', { exact: true })).toHaveValue('catalog')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

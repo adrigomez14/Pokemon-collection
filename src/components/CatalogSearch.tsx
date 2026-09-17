@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search as SearchIcon, SlidersHorizontal } from 'lucide-react'
-import { getFilterValues, getSets, LATEST_SET, sortOptions, type FilterField, type Search } from '../lib/catalog'
+import { catalogSort, clearRarityCache, getFilterValues, getSets, LATEST_SET, sortOptions, type FilterField, type Search } from '../lib/catalog'
 import { languages, type Language } from '../lib/models'
 
 export function CatalogSearch({ language, search, onSearch }: { language: Language; search: Search; onSearch: (search: Search) => void }) {
@@ -26,10 +26,11 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
     setDraft((previous) => ({ ...previous, [field]: value }))
   }
   function selectSet(value: string) {
-    apply({ ...draft, name: '', set: value, number: '' })
+    apply({ ...draft, name: '', set: value, number: '', sort: !value && draft.sort === 'rarity-desc' ? undefined : draft.sort })
   }
   async function refresh() {
     setRefreshing(true)
+    clearRarityCache(language)
     try {
       await Promise.all([
         sets.refetch(),
@@ -64,7 +65,8 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
           <p className="search-hint">Los filtros se combinan. «Sólo con imagen» indica una imagen catalogada, no existencias a la venta.</p>
         </div>}
       </details>
-      <div className="search-bottom"><label>Ordenar por<select aria-label="Ordenar por" value={draft.sort ?? 'catalog'} onChange={(e) => apply({ ...draft, sort: e.target.value as Search['sort'] })}>{Object.entries(sortOptions).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><button type="button" className="text-button" onClick={() => apply({ name: '', set: '', number: '', page: 1 })}>Limpiar filtros</button></div>
+      <div className="search-bottom"><label>Ordenar por<select aria-label="Ordenar por" value={catalogSort(draft)} onChange={(e) => apply({ ...draft, sort: e.target.value as Search['sort'] })}>{Object.entries(sortOptions).map(([key, label]) => <option key={key} value={key} disabled={key === 'rarity-desc' && !draft.set}>{label}</option>)}</select></label><button type="button" className="text-button" onClick={() => apply({ name: '', set: '', number: '', page: 1 })}>Limpiar filtros</button></div>
+      {catalogSort(draft) === 'rarity-desc' && <p className="search-hint">Rarezas especiales primero y comunes al final. Dentro de cada nivel, número descendente. Las categorías sin equivalencia se agrupan aparte; este orden no indica el precio.</p>}
     </form>
     <div className="catalog-sync">
       <div><strong>{sets.data ? `${sets.data.length} expansiones disponibles · ${languages[language]}` : sets.isPending ? 'Consultando expansiones…' : 'Índice de expansiones no disponible'}</strong>

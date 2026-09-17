@@ -12,7 +12,7 @@ describe('Inicio con novedades', () => {
       ])))
       .mockResolvedValueOnce(new Response(JSON.stringify([card])))
     vi.stubGlobal('fetch', fetch)
-    await searchCards('es', { name: '', set: LATEST_SET, number: '', page: 2 })
+    await searchCards('es', { name: '', set: LATEST_SET, number: '', page: 2, sort: 'catalog' })
     const sets = new URL(fetch.mock.calls[0][0])
     expect(sets.searchParams.get('sort:field')).toBe('releaseDate')
     expect(sets.searchParams.get('sort:order')).toBe('DESC')
@@ -59,7 +59,7 @@ describe('Cliente del catálogo', () => {
   it('envía idioma, paginación y filtros de expansión y número', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify([card])))
     vi.stubGlobal('fetch', fetch)
-    await searchCards('ja', { name: 'ピカチュウ', set: 'SV1', number: '025', page: 2 })
+    await searchCards('ja', { name: 'ピカチュウ', set: 'SV1', number: '025', page: 2, sort: 'catalog' })
     const url = new URL(fetch.mock.calls[0][0])
     expect(url.pathname).toBe('/v2/ja/cards')
     expect(url.searchParams.get('name')).toBe('like:ピカチュウ')

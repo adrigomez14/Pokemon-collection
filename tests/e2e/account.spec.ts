@@ -34,6 +34,7 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   })
   await page.route('https://api.tcgdex.net/v2/**', (route) => {
     const path = new URL(route.request().url()).pathname
+    if (path.endsWith('/rarities')) return route.fulfill({ json: ['Common'] })
     if (/\/(categories|types|rarities)$/.test(path)) return route.fulfill({ json: [] })
     return route.fulfill({ json: path.endsWith('/sets') ? [{ id: 'base1', name: 'Base Set', cardCount: { total: 102, official: 102 } }] : /\/cards\//.test(path) ? card : [card] })
   })
