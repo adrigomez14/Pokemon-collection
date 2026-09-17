@@ -5,6 +5,7 @@
   "rewrites": [
     { "source": "/catalogo", "destination": "/index.html" },
     { "source": "/coleccion", "destination": "/index.html" },
+    { "source": "/deseos", "destination": "/index.html" },
     { "source": "/contacto", "destination": "/index.html" },
     { "source": "/privacidad", "destination": "/index.html" }
   ],
@@ -12,6 +13,8 @@
     "api/feedback-notification.ts": { "maxDuration": 30 }
   },
   "headers": [{ "source": "/coleccion", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }, {
+    "source": "/deseos", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+  }, {
     "source": "/(.*)",
     "headers": [
       { "key": "X-Content-Type-Options", "value": "nosniff" },

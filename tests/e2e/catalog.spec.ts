@@ -37,14 +37,14 @@ test('inicia sin nombre y consulta la expansión más reciente sin fijar su ID',
   await expect(page.getByLabel('Ordenar por', { exact: true })).toHaveValue('rarity-desc')
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   await expect(page.getByLabel('Expansión', { exact: true })).toHaveValue('__latest__')
-  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(1)
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(1)
   const all = page.waitForRequest((request) => {
     const u = new URL(request.url())
     return u.pathname === '/v2/es/cards' && u.searchParams.get('set.id') === 'eq:old-test|latest-test'
   })
   await page.getByLabel('Expansión', { exact: true }).selectOption('')
   expect(new URL((await all).url()).searchParams.has('set.serie.id')).toBe(false)
-  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(2)
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
 })
 
@@ -188,6 +188,7 @@ test('muestra el precio de Blastoise holo sin confundirlo con la oferta español
 test('combina filtros, conserva la consulta al paginar y permite limpiar', async ({ page }) => {
   await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => route.fulfill({ json: new URL(route.request().url()).searchParams.has('set.serie.id') ? [] : Array.from({ length: 24 }, (_, i) => ({ ...card, id: `base1-${i}`, name: `Carta ${i}` })) }))
   await page.goto('/')
+  if (await page.getByRole('button', { name: 'Más filtros', exact: true }).isVisible()) await page.getByRole('button', { name: 'Más filtros', exact: true }).click()
   await page.getByLabel('Categoría de carta').selectOption('Pokémon')
   await page.getByLabel('Expansión', { exact: true }).selectOption('base1')
   await page.getByText('Más opciones de filtro', { exact: true }).click()
@@ -221,7 +222,7 @@ test('combina filtros, conserva la consulta al paginar y permite limpiar', async
   const resetUrl = new URL((await reset).url())
   expect([...resetUrl.searchParams.keys()].sort()).toEqual(['pagination:itemsPerPage', 'pagination:page', 'set.id'])
   expect(resetUrl.searchParams.get('set.id')).toBe('eq:base1')
-  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(24)
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(24)
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   await expect(page.getByLabel('Nombre exacto', { exact: true })).not.toBeChecked()
   await expect(page.getByLabel('Sólo con imagen', { exact: true })).not.toBeChecked()
@@ -230,13 +231,13 @@ test('combina filtros, conserva la consulta al paginar y permite limpiar', async
 
 test('cambia entre lista y cuadrícula sin perder resultados ni abrir otra búsqueda', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(2)
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
   let searches = 0
   page.on('request', (request) => { if (new URL(request.url()).pathname.endsWith('/cards')) searches++ })
   await page.getByRole('button', { name: 'Ver lista', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Ver lista', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByLabel('Resultados del catálogo')).toHaveClass('cards-list')
-  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(2)
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   await page.getByRole('button', { name: /base1-58.*Pikachu/ }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
@@ -250,6 +251,7 @@ test('un fallo de las opciones avanzadas no bloquea la búsqueda y permite recar
   let failing = true
   await page.route('https://api.tcgdex.net/v2/es/rarities', (route) => failing ? route.fulfill({ status: 503 }) : route.fulfill({ json: ['Común'] }))
   await page.goto('/')
+  if (await page.getByRole('button', { name: 'Más filtros', exact: true }).isVisible()) await page.getByRole('button', { name: 'Más filtros', exact: true }).click()
   await page.getByText('Más opciones de filtro', { exact: true }).click()
   await expect(page.getByText('No se pudieron cargar las opciones.', { exact: false })).toBeVisible()
   await page.getByLabel('Nombre de carta').fill('no-existe')
@@ -263,6 +265,7 @@ test('un fallo de las opciones avanzadas no bloquea la búsqueda y permite recar
 
 test('cambiar idioma elimina categorías y filtros traducidos de la consulta anterior', async ({ page }) => {
   await page.goto('/')
+  if (await page.getByRole('button', { name: 'Más filtros', exact: true }).isVisible()) await page.getByRole('button', { name: 'Más filtros', exact: true }).click()
   await page.getByLabel('Categoría de carta').selectOption('Pokémon')
   await page.getByLabel('Nombre exacto', { exact: true }).check()
   const request = page.waitForRequest((req) => new URL(req.url()).pathname === '/v2/ja/cards')

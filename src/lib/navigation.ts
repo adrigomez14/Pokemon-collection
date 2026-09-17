@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-export const pagePaths = { catalog: '/catalogo', collection: '/coleccion', contact: '/contacto', privacy: '/privacidad' } as const
+export const pagePaths = { catalog: '/catalogo', collection: '/coleccion', wishlists: '/deseos', contact: '/contacto', privacy: '/privacidad' } as const
 export type PageView = keyof typeof pagePaths
 export function pageFromPath(pathname: string): PageView {
   return (Object.entries(pagePaths).find(([, path]) => path === pathname.replace(/\/$/, ''))?.[0] as PageView | undefined) ?? 'catalog'
@@ -15,7 +15,7 @@ export function usePageNavigation(): [PageView, (view: PageView) => void] {
     return () => window.removeEventListener('popstate', onPop)
   }, [])
   useEffect(() => {
-    const titles = { catalog: 'Catálogo de cartas físicas', collection: 'Mi colección', contact: 'Contacto', privacy: 'Privacidad' }
+    const titles = { catalog: 'Catálogo de cartas físicas', collection: 'Mi colección', wishlists: 'Listas de deseos', contact: 'Contacto', privacy: 'Privacidad' }
     document.title = `${titles[view]} · Pokéfolio`
   }, [view])
   return [view, (next) => {

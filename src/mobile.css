@@ -1,0 +1,62 @@
+/* Navegación y controles compactos: las cartas siguen siendo el contenido principal. */
+.search-quick-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.mobile-filter-toggle { display: none; }
+@media (min-width: 701px) and (max-width: 1000px) {
+  .header .header-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding: 9px 24px 5px; }
+  .header .account { grid-column: 2; grid-row: 1; }
+  .header nav { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 4px; }
+  .header .nav-item { min-width: 0; padding: 8px; min-height: 44px; gap: 6px; font-size: 12px; justify-content: center; }
+}
+@media (max-width: 700px) {
+  .header .header-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; padding: 9px 12px 5px; }
+  .header .brand { font-size: 22px; }
+  .header .account { grid-column: 2; grid-row: 1; }
+  .header nav { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 2px; }
+  .header .nav-item { min-width: 0; padding: 8px 2px; min-height: 44px; gap: 4px; font-size: 10px; justify-content: center; }
+  .header .nav-item svg { width: 14px; flex-shrink: 0; }
+  .header .count-badge { font-size: 8px; padding: 1px 3px; min-width: 14px; }
+  .main { padding-top: 14px; }
+  .view-catalog .trainer-hero { min-height: 0; padding: 15px 17px; margin-bottom: 16px; border-radius: 16px; }
+  .view-catalog .trainer-hero h1 { font-size: 24px; line-height: 1.15; margin: 0; }
+  .view-catalog .trainer-hero h1 br { display: none; }
+  .view-catalog .trainer-hero h1 span { display: block; }
+  .view-catalog .trainer-hero .hero-copy > p, .view-catalog .trainer-hero .eyebrow,
+  .view-catalog .trainer-hero .hero-actions, .view-catalog .trainer-hero .energy-types,
+  .view-catalog .trainer-hero .pokedex-art, .view-catalog > .stats { display: none; }
+  .view-catalog .catalog-section { margin-top: 14px; }
+  .view-catalog .section-heading { flex-direction: row; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .view-catalog .section-heading .eyebrow { display: none; }
+  .view-catalog .section-heading h2 { font-size: 22px; }
+  .view-catalog .language-label { flex: 0 0 112px; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 11px; }
+  .view-catalog .advanced-search { padding: 12px; }
+  .view-catalog .search-fields { gap: 9px; }
+  .view-catalog .search-fields input, .view-catalog .search-fields select { font-size: 16px; height: 42px; }
+  .view-catalog .search-submit { min-height: 44px; }
+  .mobile-filter-toggle { display: inline-flex; }
+  .search-quick-actions { justify-content: space-between; margin-top: 9px; }
+  .search-quick-actions button { min-height: 44px; font-size: 12px; }
+  .advanced-search:not(.mobile-expanded) .mobile-extra { display: none; }
+  .advanced-search:not(.mobile-expanded) > .search-hint:not([role="alert"]) { display: none; }
+  .view-catalog .search-bottom { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; margin-top: 10px; padding-top: 10px; gap: 8px; }
+  .view-catalog .search-bottom label { display: grid; gap: 4px; }
+  .view-catalog .search-bottom select { min-width: 0; max-width: 100%; width: 100%; font-size: 12px; }
+  .view-catalog .search-bottom .text-button { min-height: 44px; font-size: 11px; }
+  .view-catalog .set-progress { padding: 12px; margin: 12px 0; }
+  .view-catalog .set-progress-heading .eyebrow { display: none; }
+  .view-catalog .set-progress-heading h3 { font-size: 16px; margin: 0 0 8px; }
+  .view-catalog .set-progress-heading > strong { font-size: 22px; }
+  .view-catalog .set-progress small { display: none; }
+  .view-catalog .set-progress > p { font-size: 12px; margin-top: 8px; }
+  .view-catalog .ownership-filters { gap: 6px; margin: 10px 0 0; }
+  .view-catalog .ownership-filters button { min-height: 44px; font-size: 11px; padding: 8px 9px; }
+  .view-catalog .catalog-meta { margin: 10px 0; font-size: 11px; }
+  .view-catalog .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .view-catalog .card-art { padding: 12px; }
+  .view-catalog .card-info { padding: 10px; }
+  .view-catalog .card-info h3 { font-size: 14px; }
+  .view-catalog .card-code { font-size: 9px; }
+  .view-catalog .card-tile-footer { font-size: 10px; }
+  .view-catalog .add-circle { width: 23px; height: 23px; }
+  .view-catalog .owned-badge { max-width: calc(100% - 46px); white-space: normal; font-size: 8px; }
+  .view-catalog .cards-list .card-info { padding-right: 48px; }
+}

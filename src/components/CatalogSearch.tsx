@@ -9,6 +9,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
   const [draft, setDraft] = useState<Search>(search)
   const [advanced, setAdvanced] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [mobileExpanded, setMobileExpanded] = useState(false)
   const sets = useQuery({
     queryKey: ['sets', language], queryFn: ({ signal }) => getSets(language, signal),
     staleTime: 5 * 60 * 1000, refetchInterval: 15 * 60 * 1000,
@@ -42,7 +43,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
   }
 
   return <>
-    <form className="search-panel advanced-search" onSubmit={submit}>
+    <form className={`search-panel advanced-search${mobileExpanded ? ' mobile-expanded' : ''}`} onSubmit={submit}>
       <div className="search-fields">
         <CatalogFilter language={language} field="categories" label="Categoría de carta" value={draft.category ?? ''} onChange={(value) => change('category', value)} />
         <label>Expansión<select aria-label="Expansión" value={draft.set} disabled={sets.isPending && !sets.data} onChange={(e) => selectSet(e.target.value)}>
@@ -52,13 +53,14 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
           {sets.data?.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.id} · {item.cardCount.total} cartas</option>)}
         </select></label>
         <label className="name-filter">Nombre<input aria-label="Nombre de carta" name="name" placeholder="Nombre de la carta (opcional)" value={draft.name} onChange={(e) => change('name', e.target.value)} maxLength={100} /></label>
-        <label>Número<input aria-label="Número de carta" name="number" placeholder="Ej. 025, 200" value={draft.number} onChange={(e) => change('number', e.target.value)} maxLength={50} pattern="[a-zA-Z0-9\-]+" title="Número o código exacto, conservando ceros iniciales; sin barras ni comodines." /></label>
+        <label className="mobile-extra">Número<input aria-label="Número de carta" name="number" placeholder="Ej. 025, 200" value={draft.number} onChange={(e) => change('number', e.target.value)} maxLength={50} pattern="[a-zA-Z0-9\-]+" title="Número o código exacto, conservando ceros iniciales; sin barras ni comodines." /></label>
         <button className="primary search-submit" type="submit"><SearchIcon size={16} />Buscar cartas</button>
       </div>
-      <div className="search-checks"><label className="check-label"><input type="checkbox" checked={draft.exactName ?? false} onChange={(e) => change('exactName', e.target.checked)} />Nombre exacto</label><label className="check-label"><input type="checkbox" checked={draft.imageOnly ?? false} onChange={(e) => change('imageOnly', e.target.checked)} />Sólo con imagen</label><button type="button" aria-label="Refrescar catálogo" title="Refrescar catálogo" disabled={refreshing || sets.isFetching} onClick={() => void refresh()}><RefreshCw size={16} className={refreshing || sets.isFetching ? 'spin' : ''} />Refrescar</button></div>
+      <div className="search-quick-actions"><button className="mobile-filter-toggle" type="button" aria-expanded={mobileExpanded} onClick={() => setMobileExpanded(!mobileExpanded)}><SlidersHorizontal size={16} />{mobileExpanded ? 'Ocultar filtros' : 'Más filtros'}{(draft.category || draft.number || draft.rarity || draft.type || draft.exactName || draft.imageOnly) && <span className="filter-dot" aria-label="Hay filtros seleccionados" />}</button><button type="button" aria-label="Refrescar catálogo" title="Refrescar catálogo" disabled={refreshing || sets.isFetching} onClick={() => void refresh()}><RefreshCw size={16} className={refreshing || sets.isFetching ? 'spin' : ''} />Refrescar</button></div>
+      <div className="search-checks mobile-extra"><label className="check-label"><input type="checkbox" checked={draft.exactName ?? false} onChange={(e) => change('exactName', e.target.checked)} />Nombre exacto</label><label className="check-label"><input type="checkbox" checked={draft.imageOnly ?? false} onChange={(e) => change('imageOnly', e.target.checked)} />Sólo con imagen</label></div>
       {draft.exactName && <p className="search-hint">El nombre exacto distingue mayúsculas y minúsculas según TCGdex.</p>}
       {draft.set === LATEST_SET && <p className="search-hint">Novedades: expansión física más reciente por fecha de lanzamiento en TCGdex para este idioma. Pokémon TCG Pocket queda excluido.</p>}
-      <details className="advanced-filters" open={advanced} onToggle={(e) => setAdvanced(e.currentTarget.open)}>
+      <details className="advanced-filters mobile-extra" open={advanced} onToggle={(e) => setAdvanced(e.currentTarget.open)}>
         <summary><SlidersHorizontal size={15} />Más opciones de filtro{(draft.rarity || draft.type) && <span className="filter-dot" aria-label="Hay filtros avanzados seleccionados" />}</summary>
         {advanced && <div className="filter-options">
           <CatalogFilter language={language} field="rarities" label="Rareza" value={draft.rarity ?? ''} onChange={(value) => change('rarity', value)} />
@@ -75,7 +77,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
 
 function CatalogFilter({ language, field, label, value, onChange }: { language: Language; field: FilterField; label: string; value: string; onChange: (value: string) => void }) {
   const values = useQuery({ queryKey: ['catalog-filters', language, field], queryFn: ({ signal }) => getFilterValues(language, field, signal), staleTime: 60 * 60 * 1000 })
-  return <label>{label}<select aria-label={label} value={value} disabled={values.isPending && !values.data} onChange={(e) => onChange(e.target.value)}>
+  return <label className={field === 'categories' ? 'mobile-extra' : undefined}>{label}<select aria-label={label} value={value} disabled={values.isPending && !values.data} onChange={(e) => onChange(e.target.value)}>
     <option value="">Todas las opciones</option>
     {value && !values.data?.includes(value) && <option value={value}>{value}</option>}
     {values.data?.map((item) => <option key={item} value={item}>{item}</option>)}

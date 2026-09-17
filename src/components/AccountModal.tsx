@@ -7,9 +7,9 @@ export type AccountModalProps = {
   user: User
   canExport: boolean
   onClose: () => void
-  /** Limpiar usuario, colección, cachés y cerrar el diálogo tras el borrado confirmado. */
+  /** Limpiar usuario, colección, listas de deseos, cachés y cerrar el diálogo tras el borrado confirmado. */
   onDeleted: () => void
-  /** Exportar la colección actual como JSON; no implica una copia de todos los datos personales. */
+  /** Exportar solo la colección actual como JSON, sin listas de deseos ni todos los datos personales. */
   onExport: () => void
 }
 
@@ -70,7 +70,7 @@ function AccountForm({ user, canExport, onClose, onDeleted, onExport }: AccountM
       <p>Correo de la cuenta: <strong>{user.email ?? 'No disponible'}</strong></p>
       <section className="stack" aria-labelledby="account-export-heading">
         <h3 id="account-export-heading">Copia de tu colección</h3>
-        <p>Descarga tu colección antes de eliminar la cuenta. La copia JSON no incluye mensajes de contacto ni todos los datos de cuenta.</p>
+        <p>Descarga tu colección antes de eliminar la cuenta. La copia JSON incluye únicamente la colección, no las listas de deseos ni sus cartas, los mensajes de contacto ni todos los datos de cuenta.</p>
         <button type="button" disabled={busy || !canExport} onClick={onExport}>Exportar copia JSON</button>
         {!canExport && <p>La exportación estará disponible cuando se haya cargado una colección con cartas.</p>}
       </section>
@@ -89,7 +89,7 @@ function AccountForm({ user, canExport, onClose, onDeleted, onExport }: AccountM
       </form>
       <section className="danger stack" aria-labelledby="account-delete-heading">
         <h3 id="account-delete-heading">Eliminar cuenta</h3>
-        <p id="account-delete-warning"><strong>Esta acción es irreversible.</strong> Se eliminarán tu cuenta, todas tus colecciones y los mensajes de contacto asociados a tu cuenta en la base de datos. Exporta primero lo que quieras conservar.</p>
+        <p id="account-delete-warning"><strong>Esta acción es irreversible.</strong> Se eliminarán tu cuenta, todas tus colecciones, tus listas de deseos y las cartas de esas listas, y los mensajes de contacto asociados a tu cuenta en la base de datos. Exporta primero tu colección y conserva por separado lo que necesites de tus listas de deseos: no se incluyen en la copia JSON.</p>
         <p>Los mensajes enviados sin sesión, las copias de correo y las copias de seguridad requieren el tratamiento indicado en la información de privacidad. Puedes consultar al responsable en <a href="mailto:pokefolio14@gmail.com">pokefolio14@gmail.com</a>.</p>
         <form className="stack" aria-describedby="account-delete-warning" onSubmit={(event) => { void submit(event, 'delete') }}>
           <label htmlFor="account-delete-password">Contraseña actual para eliminar la cuenta</label>
