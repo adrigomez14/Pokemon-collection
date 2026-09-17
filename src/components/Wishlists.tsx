@@ -196,14 +196,12 @@ function WishlistNameForm({ initialName = '', label = 'Nueva lista privada', sub
   </form>
 }
 
-type HeartProps = { card: CardBrief; language: Language; onAuth: () => void }
-
-export function WishlistHeart(props: HeartProps) {
+export function WishlistHeart(props: { card: CardBrief; language: Language; onAuth: () => void }) {
   const { userId } = useWishlists()
   return <WishlistHeartScope key={JSON.stringify([userId, props.card.id, props.language])} {...props} />
 }
 
-function WishlistHeartScope({ card, language, onAuth }: HeartProps) {
+function WishlistHeartScope({ card, language, onAuth }: { card: CardBrief; language: Language; onAuth: () => void }) {
   const { userId, data, error, fetching, pending, canWrite, run } = useWishlists()
   const [open, setOpen] = useState(false)
   const saved = Boolean(userId && data && isCardWished(data.items, card.id, language))
@@ -283,32 +281,37 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
     
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '1fr 320px',
-      gap: '32px',
-      alignItems: 'start',
-      marginBottom: '40px'
+      gridTemplateColumns: '1fr 350px',
+      gap: '40px',
+      alignItems: 'center',
+      marginBottom: '40px',
+      padding: '48px',
+      background: 'radial-gradient(circle at 70% 30%, #1e364d 0%, #0d1b2a 100%)',
+      borderRadius: '32px',
+      border: '1px solid rgba(255, 255, 255, 0.05)',
+      boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
     }}>
       <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#16a34a', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', display: 'inline-block' }}></span>
-          TU ESPACIO PRIVADO
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>
+          TU ARCHIVO DE ENTRENADOR
         </div>
         
-        <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#0f172a' }}>
+        <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#ffffff' }}>
           {totalWishedItems} {totalWishedItems === 1 ? 'carta guardada.' : 'cartas guardadas.'}
-          <span style={{ display: 'block', color: '#f59e0b', fontWeight: 700, marginTop: '4px' }}>Tus próximas adquisiciones.</span>
+          <span style={{ display: 'block', color: '#facc15', fontWeight: 700, marginTop: '4px' }}>Una historia en cada carta.</span>
         </h1>
         
-        <p style={{ color: '#475569', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px', margin: '16px 0 24px 0' }}>
+        <p style={{ color: '#94a3b8', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px', margin: '16px 0 32px 0' }}>
           Cada hallazgo tiene su sitio. Revisa tus listas privadas, organiza tus objetivos de compra y mantén el seguimiento sin alterar tu colección principal.
         </p>
 
-        <div style={{ marginBottom: '32px' }}>
+        <div style={{ marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '16px' }}>
           <button 
             type="button" 
             onClick={onExploreCatalog}
             style={{
-              background: '#fbbf24',
+              background: '#facc15',
               color: '#0f172a',
               fontWeight: 700,
               fontSize: '0.95rem',
@@ -319,25 +322,25 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
               gap: '10px',
               border: 'none',
               cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(251, 191, 36, 0.2)'
+              boxShadow: '0 4px 12px rgba(250, 204, 21, 0.2)'
             }}
           >
             Explorar catálogo <ArrowRight size={18} />
           </button>
-          <span style={{ display: 'block', color: '#64748b', fontSize: '0.8rem', marginTop: '8px' }}>
-            🔒 Listas protegidas y 100% privadas para ti
+          <span style={{ color: '#94a3b8', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <LockKeyhole size={16} /> Tu colección, en tu cuenta
           </span>
         </div>
 
         {userId && data && (
           <div style={{ display: 'flex', gap: '16px' }}>
-            <div style={{ background: 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(0, 0, 0, 0.06)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
-              <span style={{ display: 'block', color: '#64748b', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Listas creadas</span>
-              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>{totalLists}</span>
+            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
+              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Listas creadas</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ffffff' }}>{totalLists}</span>
             </div>
-            <div style={{ background: 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(0, 0, 0, 0.06)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
-              <span style={{ display: 'block', color: '#64748b', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Total en deseos</span>
-              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a' }}>{totalWishedItems}</span>
+            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
+              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px' }}>Total en deseos</span>
+              <span style={{ fontSize: '1.8rem', fontWeight: 800, color: '#facc15' }}>{totalWishedItems}</span>
             </div>
           </div>
         )}
@@ -345,35 +348,42 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
 
       {featuredItem ? (
         <div style={{
-          background: '#dc2626',
+          backgroundColor: '#e33545',
           borderRadius: '20px',
-          padding: '16px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          padding: '24px 20px',
+          position: 'relative',
+          boxShadow: 'inset -8px -8px 15px rgba(0, 0, 0, 0.2), inset 8px 8px 15px rgba(255, 255, 255, 0.3), 15px 20px 30px rgba(0, 0, 0, 0.5), inset 0 0 0 1px #ff5a69',
           color: '#0f172a'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', padding: '0 4px' }}>
-            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#60a5fa', border: '2px solid white' }}></div>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f87171' }}></div>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#facc15' }}></div>
-            <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 800, color: 'white', letterSpacing: '0.05em' }}>WISHLIST / TCG</span>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', padding: '0 4px' }}>
+            <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'radial-gradient(circle at 30% 30%, #b2ffff, #008080)', border: '2px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.3)', marginRight: '8px' }}></div>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffca28', boxShadow: '0 1px 2px rgba(0,0,0,0.3)', marginRight: '6px' }}></div>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#4caf50', boxShadow: '0 1px 2px rgba(0,0,0,0.3)' }}></div>
+            <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 800, color: '#7a1520', letterSpacing: '0.05em' }}>POKÉFOLIO / TCG</span>
           </div>
 
-          <div style={{ background: '#ffffff', borderRadius: '14px', padding: '14px' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Heart size={13} fill="currentColor" color="#dc2626" /> CARTA DESTACADA
+          <div style={{ 
+            background: '#f7f9f8', 
+            borderRadius: '12px', 
+            padding: '16px',
+            boxShadow: 'inset 0 4px 8px rgba(0, 0, 0, 0.1), 0 2px 0 rgba(255,255,255, 0.5)'
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              ✨ CARTA DESTACADA
             </div>
             
-            <div style={{ background: '#f1f5f9', borderRadius: '10px', padding: '10px', textAlign: 'center', marginBottom: '12px' }}>
-              <div style={{ maxHeight: '180px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ background: '#e0e9e5', borderRadius: '10px', padding: '16px', textAlign: 'center', marginBottom: '16px' }}>
+              <div style={{ maxHeight: '220px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
                 <CardImage card={featuredItem.card_snapshot} />
               </div>
             </div>
 
-            <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0f172a', marginBottom: '2px' }}>
+            <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#0f172a', marginBottom: '4px' }}>
               {featuredItem.card_snapshot.name}
             </div>
-            <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px' }}>
-              N.º {featuredItem.card_snapshot.localId} · {languages[featuredItem.language]}
+            <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '16px', display: 'flex', gap: '8px' }}>
+              <span>N.º {featuredItem.card_snapshot.localId}</span>
+              <span style={{ background: 'white', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '0.75rem' }}>{languages[featuredItem.language]}</span>
             </div>
 
             <button 
@@ -381,14 +391,15 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
               onClick={() => onOpenCard(featuredItem.card_snapshot, featuredItem.language)}
               style={{
                 width: '100%',
-                background: '#0f172a',
-                color: 'white',
-                border: 'none',
+                background: 'transparent',
+                color: '#64748b',
+                border: '1px solid #cbd5e1',
                 borderRadius: '8px',
                 padding: '10px',
                 fontSize: '0.9rem',
                 fontWeight: 700,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'all 0.2s'
               }}
             >
               Ver detalles de la carta
@@ -397,12 +408,12 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
         </div>
       ) : (
         <div style={{
-          background: 'rgba(0, 0, 0, 0.02)',
-          border: '2px dashed rgba(0, 0, 0, 0.1)',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '2px dashed rgba(255, 255, 255, 0.1)',
           borderRadius: '20px',
           padding: '32px',
           textAlign: 'center',
-          color: '#64748b'
+          color: '#94a3b8'
         }}>
           <Heart size={32} style={{ margin: '0 auto 12px auto', opacity: 0.4 }} />
           <p style={{ fontSize: '0.9rem', margin: 0 }}>Añade cartas a tus listas para verlas destacadas aquí.</p>
