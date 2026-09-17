@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Heart, LockKeyhole, Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, Heart, LockKeyhole, Plus, Trash2 } from 'lucide-react'
 import { languages, type CardBrief, type Language } from '../lib/models'
 import {
   addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists, removeWishlistItem,
@@ -315,6 +315,37 @@ function WishlistPageScope({ onAuth, onOpenCard }: PageProps) {
                   <button type="button" className="wishlist-button wishlist-button-danger" disabled={!canWrite} onClick={() => setDialog({ kind: 'delete', list: selected })}>Eliminar lista</button>
                 </div>
               </div>
+
+              {/* Banner de referido con daxter14 */}
+              <div className="cardmarket-referral-banner" style={{
+                background: "var(--background-secondary, #f8f9fa)",
+                border: "1px solid var(--border-color, #e9ecef)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+                margin: "16px 0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "12px",
+                fontSize: "0.9rem"
+              }}>
+                <div>
+                  <strong>¿Vas a comprar cartas de esta lista?</strong>
+                  <p style={{ margin: "4px 0 0 0", color: "var(--text-muted, #6c757d)" }}>
+                    Si aún no tienes cuenta en Cardmarket, puedes apoyarnos introduciendo el usuario <code>daxter14</code> al registrarte.
+                  </p>
+                </div>
+                <a 
+                  href="https://www.cardmarket.com/es/Pokemon" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="wishlist-button"
+                  style={{ whiteSpace: "nowrap", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  Ir a Cardmarket <ExternalLink size={14} />
+                </a>
+              </div>
+
               {items?.length === 0 ? !error && <div className="wishlist-empty"><h3>Esta lista aún no tiene cartas</h3><p>Abre el corazón de una carta del catálogo y marca esta lista.</p></div> :
                 <ul className="wishlist-cards">{items?.map((item) => <li className="wishlist-card" key={wishlistCardKey(item.card_id, item.language)}>
                   <button type="button" className="wishlist-card-open" aria-label={`Abrir ${item.card_snapshot.name} en ${languages[item.language]}`}
@@ -328,9 +359,9 @@ function WishlistPageScope({ onAuth, onOpenCard }: PageProps) {
                 </li>)}</ul>}
             </section>}
           </div>}
-      </>}
+      </>}.
       {!error && <div className="wishlist-actions"><button type="button" className="wishlist-button" disabled={fetching || pending} onClick={() => { void retry() }}>Actualizar listas</button></div>}
-    </>}
+    </>}.
     {userId && dialog && <Modal title={dialog.kind === 'rename' ? 'Renombrar lista' : dialog.kind === 'delete' ? 'Eliminar lista privada' : 'Quitar carta de esta lista'} busy={pending} onClose={() => setDialog(null)}>
       <div className="wishlist-dialog">
         <WishlistStatus />
