@@ -279,7 +279,6 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
   }
 
   return <>
-    {/* Nuevo Hero usando las clases de CollectionSummary */}
     <section className="hero trainer-hero collection-hero" aria-labelledby={headingId}>
       <div className="hero-copy">
         <span className="eyebrow"><span className="live-dot" />TUS LISTAS DE DESEOS</span>
@@ -316,7 +315,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
             </div>
             <div className="collection-feature-detail">
               <h2>{featuredItem ? featuredItem.card_snapshot.name : 'Una favorita por buscar'}</h2>
-              <p className="collection-feature-set">{featuredItem ? `${featuredItem.card_snapshot.set.name} · N.º ${featuredItem.card_snapshot.localId}` : 'Búscala en el catálogo y añádela a tu lista.'}</p>
+              <p className="collection-feature-set">{featuredItem ? `N.º ${featuredItem.card_snapshot.localId}` : 'Búscala en el catálogo y añádela a tu lista.'}</p>
               {featuredItem && <p className="collection-feature-tags"><span>{languages[featuredItem.language]}</span></p>}
               <div className="collection-feature-value">
                 {featuredItem ? (
@@ -339,7 +338,6 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
       </aside>
     </section>
 
-    {/* Resto de la página (Gestión de listas) */}
     <section className="wishlist-page">
       {!userId ? <div className="wishlist-empty">
         <h2>Tus próximas cartas, en un solo lugar</h2><p>Inicia sesión para crear varias listas privadas y guardar cartas por idioma.</p>
