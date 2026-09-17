@@ -26,7 +26,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
     setDraft((previous) => ({ ...previous, [field]: value }))
   }
   function selectSet(value: string) {
-    apply({ ...draft, name: '', set: value, number: '', sort: !value && draft.sort === 'rarity-desc' ? undefined : draft.sort })
+    apply({ ...draft, name: '', set: value, number: '', ownership: 'all', sort: !value && draft.sort === 'rarity-desc' ? undefined : draft.sort })
   }
   async function refresh() {
     setRefreshing(true)
@@ -36,6 +36,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
         sets.refetch(),
         client.invalidateQueries({ queryKey: ['catalog', language] }),
         client.invalidateQueries({ queryKey: ['catalog-filters', language] }),
+        client.invalidateQueries({ queryKey: ['set-catalog', language] }),
       ])
     } finally { setRefreshing(false) }
   }
@@ -45,7 +46,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
       <div className="search-fields">
         <CatalogFilter language={language} field="categories" label="Categoría de carta" value={draft.category ?? ''} onChange={(value) => change('category', value)} />
         <label>Expansión<select aria-label="Expansión" value={draft.set} disabled={sets.isPending && !sets.data} onChange={(e) => selectSet(e.target.value)}>
-          <option value="">Todas las expansiones</option>
+          <option value="">Todas las expansiones físicas</option>
           <option value={LATEST_SET}>Novedades · expansión más reciente</option>
           {draft.set && draft.set !== LATEST_SET && !sets.data?.some((item) => item.id === draft.set) && <option value={draft.set}>{draft.set}</option>}
           {sets.data?.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.id} · {item.cardCount.total} cartas</option>)}
@@ -56,7 +57,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
       </div>
       <div className="search-checks"><label className="check-label"><input type="checkbox" checked={draft.exactName ?? false} onChange={(e) => change('exactName', e.target.checked)} />Nombre exacto</label><label className="check-label"><input type="checkbox" checked={draft.imageOnly ?? false} onChange={(e) => change('imageOnly', e.target.checked)} />Sólo con imagen</label></div>
       {draft.exactName && <p className="search-hint">El nombre exacto distingue mayúsculas y minúsculas según TCGdex.</p>}
-      {draft.set === LATEST_SET && <p className="search-hint">Novedades: cartas de la expansión más reciente por fecha de lanzamiento en TCGdex para este idioma. Elige «Todas las expansiones» para buscar en todo el catálogo.</p>}
+      {draft.set === LATEST_SET && <p className="search-hint">Novedades: expansión física más reciente por fecha de lanzamiento en TCGdex para este idioma. Pokémon TCG Pocket queda excluido.</p>}
       <details className="advanced-filters" open={advanced} onToggle={(e) => setAdvanced(e.currentTarget.open)}>
         <summary><SlidersHorizontal size={15} />Más opciones de filtro{(draft.rarity || draft.type) && <span className="filter-dot" aria-label="Hay filtros avanzados seleccionados" />}</summary>
         {advanced && <div className="filter-options">

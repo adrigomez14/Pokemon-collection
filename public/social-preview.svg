@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#17324d"/>
+  <path d="M0 0h1200v15H0z" fill="#ed4854"/>
+  <circle cx="1100" cy="80" r="310" fill="#20435f"/>
+  <circle cx="1170" cy="600" r="350" fill="#1b3954"/>
+  <g transform="translate(62 67)"><circle cx="34" cy="34" r="32" fill="#fff"/><path d="M2 34a32 32 0 0 1 64 0" fill="#ed4854"/><path d="M2 34h64" stroke="#17324d" stroke-width="7"/><circle cx="34" cy="34" r="10" fill="#fff" stroke="#17324d" stroke-width="6"/></g>
+  <g font-family="Arial, Helvetica, sans-serif">
+    <text x="145" y="115" font-size="50" font-weight="bold" fill="#fff">pokéfolio<tspan fill="#ffdb59">.</tspan></text>
+    <text x="65" y="230" font-size="20" letter-spacing="4" fill="#ffdb59">TU ÁLBUM DE CARTAS FÍSICAS</text>
+    <text x="62" y="318" font-size="66" font-weight="bold" fill="#fff">Cada carta cuenta.</text>
+    <text x="65" y="377" font-size="30" fill="#bfd3e2">Organiza. Completa. Colecciona.</text>
+    <rect x="65" y="437" width="615" height="60" rx="16" fill="#254b67"/>
+    <text x="86" y="476" font-size="23" fill="#fff">Progreso por expansión · Faltantes · Repetidas</text>
+    <text x="65" y="571" font-size="25" fill="#ffdb59">www.pokefoliotcg.es</text>
+    <text x="770" y="577" font-size="13" fill="#bfd3e2">Proyecto independiente, no afiliado a Pokémon.</text>
+  </g>
+  <g transform="translate(837 166) rotate(9 120 170)">
+    <rect x="-30" y="8" width="226" height="318" rx="22" fill="#ffce47" transform="rotate(-19 100 160)"/>
+    <rect width="226" height="318" rx="22" fill="#ed4854"/>
+    <rect x="13" y="13" width="200" height="292" rx="14" fill="#f4f8fa"/>
+    <rect x="32" y="32" width="162" height="200" rx="12" fill="#d9e8ef"/>
+    <circle cx="113" cy="130" r="52" fill="#fff" stroke="#17324d" stroke-width="7"/>
+    <path d="M61 130a52 52 0 0 1 104 0" fill="#ed4854"/>
+    <path d="M61 130h104" stroke="#17324d" stroke-width="7"/>
+    <circle cx="113" cy="130" r="17" fill="#fff" stroke="#17324d" stroke-width="7"/>
+    <rect x="32" y="251" width="113" height="10" rx="5" fill="#17324d"/>
+    <rect x="32" y="272" width="162" height="7" rx="3" fill="#bfd3e2"/>
+  </g>
+</svg>

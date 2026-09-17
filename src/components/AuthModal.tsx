@@ -15,7 +15,8 @@ export function AuthModal({ onClose, recovery = false }: { onClose: () => void; 
     event.preventDefault(); setBusy(true); setError(''); setMessage('')
     try {
       const auth = requireSupabase().auth
-      const redirect = window.location.origin + window.location.pathname
+      // Una única URL de retorno: no ampliar permisos de Auth por cada ruta pública.
+      const redirect = `${window.location.origin}/`
       if (mode === 'login') {
         const { error } = await auth.signInWithPassword({ email: email.trim(), password })
         if (error) throw error
@@ -42,6 +43,7 @@ export function AuthModal({ onClose, recovery = false }: { onClose: () => void; 
   return <Modal title={supabase ? titles[mode] : 'Activa tu colección en la nube'} onClose={onClose} busy={busy}>
     {!supabase ? <div className="setup-content"><div className="feature-icon"><ShieldCheck /></div><p>El catálogo ya funciona. Para guardar tu colección y abrirla desde cualquier dispositivo, conecta tu propio proyecto de Supabase.</p><ol><li>Crea un proyecto gratuito en Supabase.</li><li>Ejecuta la migración de la carpeta <strong>supabase</strong> en su editor SQL.</li><li>Añade la URL y la clave pública en la configuración local y reinicia la aplicación.</li></ol><p className="muted">La guía README incluida explica cada paso. Nunca introduzcas una clave secreta o service_role.</p><a className="button primary" href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">Abrir Supabase ↗</a></div> : <>
       <p className="muted auth-intro"><ShieldCheck size={17} /> Tu colección es privada y se guarda en tu cuenta.</p>
+      <p className="muted">Consulta <a href="/privacidad" target="_blank" rel="noopener noreferrer">Privacidad y tus datos</a> antes de crear una cuenta.</p>
       <form onSubmit={submit} className="stack">
         {mode !== 'password' && <label>Correo electrónico<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} /></label>}
         {mode !== 'reset' && <label>Contraseña<input type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={mode === 'login' ? 1 : 12} maxLength={128} required value={password} onChange={(e) => setPassword(e.target.value)} />{mode !== 'login' && <small>Al menos 12 caracteres.</small>}</label>}

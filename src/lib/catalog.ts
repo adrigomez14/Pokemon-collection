@@ -3,6 +3,8 @@ import { briefSchema, cardSchema, type Language } from './models'
 import { rarityRank } from './rarity'
 
 const BASE = 'https://api.tcgdex.net/v2'
+const PHYSICAL_CARDS = { 'set.serie.id': 'neq:tcgp' }
+const PHYSICAL_SETS = { 'serie.id': 'neq:tcgp' }
 export const PAGE_SIZE = 24
 export const LATEST_SET = '__latest__'
 export const sortOptions = {
@@ -14,6 +16,7 @@ export type Search = {
   name: string; set: string; number: string; page: number;
   exactName?: boolean; category?: string; rarity?: string; type?: string; imageOnly?: boolean;
   sort?: keyof typeof sortOptions;
+  ownership?: 'all' | 'missing' | 'owned';
 }
 export type FilterField = 'categories' | 'rarities' | 'types'
 
@@ -43,10 +46,12 @@ async function request(path: string, signal?: AbortSignal) {
   return response.json() as Promise<unknown>
 }
 
-export async function searchCards(language: Language, search: Search, signal?: AbortSignal) {
+export async function searchCards(language: Language, search: Search, signal?: AbortSignal, ownedIds?: ReadonlySet<string>) {
   const sort = catalogSort(search)
+  const byOwnership = search.ownership === 'missing' || search.ownership === 'owned'
+  if (byOwnership && (!search.set.trim() || !ownedIds)) throw new Error('Selecciona una expansión e inicia sesión para consultar las cartas que tienes o te faltan.')
   if (sort === 'rarity-desc' && !search.set.trim()) throw new Error('Selecciona una expansión para ordenar por rareza.')
-  const params = new URLSearchParams({ 'pagination:page': String(search.page), 'pagination:itemsPerPage': String(PAGE_SIZE) })
+  const params = new URLSearchParams({ ...PHYSICAL_CARDS, 'pagination:page': String(search.page), 'pagination:itemsPerPage': String(PAGE_SIZE) })
   if (search.name.trim()) params.set('name', `${search.exactName ? 'eq:' : 'like:'}${search.name.trim()}`)
   if (search.set.trim() && search.set !== LATEST_SET) params.set('set.id', `eq:${search.set.trim()}`)
   if (search.number.trim()) {
@@ -65,7 +70,7 @@ export async function searchCards(language: Language, search: Search, signal?: A
   }
   if (search.set === LATEST_SET) {
     // La API ordena expansiones por lanzamiento, pero ignora ese campo en cartas.
-    const ordered = z.array(setSchema).parse(await request(`${language}/sets?sort:field=releaseDate&sort:order=DESC`, signal))
+    const ordered = z.array(setSchema).parse(await request(`${language}/sets?${new URLSearchParams({ ...PHYSICAL_SETS, 'sort:field': 'releaseDate', 'sort:order': 'DESC' })}`, signal))
     const latest = ordered.find((set) => set.cardCount.total > 0)
     if (!latest) return []
     params.set('set.id', `eq:${latest.id}`)
@@ -74,17 +79,20 @@ export async function searchCards(language: Language, search: Search, signal?: A
       params.set('sort:order', 'ASC')
     }
   }
-  if (sort === 'rarity-desc') {
+  if (sort === 'rarity-desc' || byOwnership) {
     // Ordenar TODA la selección antes de paginar, no solo las 24 cartas visibles.
     params.delete('pagination:page')
     params.delete('pagination:itemsPerPage')
-    const cards = z.array(briefSchema).parse(await request(`${language}/cards?${params}`, signal))
+    let cards = z.array(briefSchema).parse(await request(`${language}/cards?${params}`, signal))
+    if (byOwnership) cards = cards.filter((card) => ownedIds!.has(card.id) === (search.ownership === 'owned'))
     if (!cards.length) return []
     // Con un filtro de rareza todas las cartas comparten categoría: basta desempatar por número.
-    const ranks = search.rarity ? new Map<string, number>() : await getRarityRanks(language, params.get('set.id')!, signal)
-    const compare = new Intl.Collator(language, { numeric: true }).compare
-    cards.sort((a, b) => (ranks.get(b.id) ?? 25) - (ranks.get(a.id) ?? 25)
-      || compare(b.localId, a.localId) || compare(a.id, b.id))
+    if (sort === 'rarity-desc') {
+      const ranks = search.rarity ? new Map<string, number>() : await getRarityRanks(language, params.get('set.id')!, signal)
+      const compare = new Intl.Collator(language, { numeric: true }).compare
+      cards.sort((a, b) => (ranks.get(b.id) ?? 25) - (ranks.get(a.id) ?? 25)
+        || compare(b.localId, a.localId) || compare(a.id, b.id))
+    }
     return cards.slice((search.page - 1) * PAGE_SIZE, search.page * PAGE_SIZE)
   }
   return z.array(briefSchema).parse(await request(`${language}/cards?${params}`, signal))
@@ -118,7 +126,7 @@ async function getRarityRanks(language: Language, setFilter: string, signal?: Ab
     while (next < queue.length) {
       combined.throwIfAborted()
       const [rank, names] = queue[next++]
-      const params = new URLSearchParams({ 'set.id': setFilter, rarity: `eq:${names.join('|')}` })
+      const params = new URLSearchParams({ ...PHYSICAL_CARDS, 'set.id': setFilter, rarity: `eq:${names.join('|')}` })
       const cards = z.array(briefSchema).parse(await request(`${language}/cards?${params}`, combined))
       for (const card of cards) ranks.set(card.id, rank)
     }
@@ -141,7 +149,7 @@ export async function getCard(language: Language, id: string, signal?: AbortSign
 
 /** El índice se obtiene del proveedor en ejecución, no de una lista compilada. */
 export async function getSets(language: Language, signal?: AbortSignal) {
-  const sets = z.array(setSchema).parse(await request(`${language}/sets`, signal))
+  const sets = z.array(setSchema).parse(await request(`${language}/sets?${new URLSearchParams(PHYSICAL_SETS)}`, signal))
   return sets.sort((a, b) => a.name.localeCompare(b.name, language, { numeric: true }))
 }
 
@@ -149,4 +157,25 @@ export async function getSets(language: Language, signal?: AbortSignal) {
 export async function getFilterValues(language: Language, field: FilterField, signal?: AbortSignal) {
   return z.array(z.string().min(1)).parse(await request(`${language}/${field}`, signal))
     .sort((a, b) => a.localeCompare(b, language, { numeric: true }))
+}
+
+const setCatalogSchema = setSchema.extend({
+  serie: z.object({ id: z.string() }), cards: z.array(briefSchema),
+})
+export type SetCatalog = z.infer<typeof setCatalogSchema>
+
+/** Índice completo de una expansión física para contar IDs distintos sin usar cantidades. */
+export async function getSetCatalog(language: Language, id: string, signal?: AbortSignal): Promise<SetCatalog | null> {
+  let resolved = id
+  if (id === LATEST_SET) {
+    const params = new URLSearchParams({ ...PHYSICAL_SETS, 'sort:field': 'releaseDate', 'sort:order': 'DESC' })
+    const sets = z.array(setSchema).parse(await request(`${language}/sets?${params}`, signal))
+    const latest = sets.find((set) => set.cardCount.total > 0)
+    if (!latest) return null
+    resolved = latest.id
+  }
+  const set = setCatalogSchema.parse(await request(`${language}/sets/${encodeURIComponent(resolved)}`, signal))
+  if (set.serie.id === 'tcgp') throw new Error('Pokémon TCG Pocket no forma parte del catálogo de cartas físicas.')
+  if (set.id !== resolved) throw new Error('El índice no corresponde a la expansión solicitada.')
+  return set
 }

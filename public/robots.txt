@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /coleccion
+Disallow: /api/
+
+Sitemap: https://www.pokefoliotcg.es/sitemap.xml

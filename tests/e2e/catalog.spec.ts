@@ -40,6 +40,7 @@ test('inicia sin nombre y consulta la expansión más reciente sin fijar su ID',
 test.beforeEach(async ({ page }) => {
   await page.route('https://api.tcgdex.net/v2/**', async (route) => {
     const url = new URL(route.request().url())
+    if (/\/sets\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { id: decodeURIComponent(url.pathname.split('/').at(-1)!), name: 'Base Set', serie: { id: 'base' }, cardCount: { total: 2, official: 2 }, cards: [card, { id: 'base1-1', name: 'Sin imagen', localId: '1', image: null }] } })
     if (url.pathname.endsWith('/sets')) return route.fulfill({ json: [{ id: 'base1', name: 'Base Set', cardCount: { total: 102, official: 102 } }] })
     if (url.pathname.endsWith('/categories')) return route.fulfill({ json: ['Pokémon', 'Entrenador', 'Energía'] })
     if (url.pathname.endsWith('/types')) return route.fulfill({ json: ['Agua', 'Rayo'] })
@@ -84,7 +85,7 @@ test('filtra, cambia a japonés y no desborda la pantalla', async ({ page }) => 
 
 test('incorpora expansiones nuevas al recargar y seleccionarlas elimina el nombre anterior', async ({ page }) => {
   let includeNew = false
-  await page.route('https://api.tcgdex.net/v2/es/sets', (route) => route.fulfill({ json: [
+  await page.route('https://api.tcgdex.net/v2/es/sets?**', (route) => new URL(route.request().url()).searchParams.has('sort:field') ? route.fallback() : route.fulfill({ json: [
     { id: 'base1', name: 'Base Set', cardCount: { total: 102, official: 102 } },
     ...(includeNew ? [{ id: 'future-test', name: 'Nueva expansión de prueba', cardCount: { total: 120, official: 100 } }] : []),
   ] }))
@@ -107,7 +108,8 @@ test('actualiza automáticamente el índice de expansiones con el catálogo abie
   await page.clock.install()
   let queries = 0
   let includeNew = false
-  await page.route('https://api.tcgdex.net/v2/es/sets', (route) => {
+  await page.route('https://api.tcgdex.net/v2/es/sets?**', (route) => {
+    if (new URL(route.request().url()).searchParams.has('sort:field')) return route.fallback()
     queries++
     return route.fulfill({ json: [{ id: includeNew ? 'new-test' : 'initial-test', name: 'Expansión de prueba', cardCount: { total: 1, official: 1 } }] })
   })
@@ -122,7 +124,7 @@ test('actualiza automáticamente el índice de expansiones con el catálogo abie
 })
 
 test('un fallo del índice no impide buscar cartas por nombre', async ({ page }) => {
-  await page.route('https://api.tcgdex.net/v2/es/sets', (route) => route.fulfill({ status: 503, body: 'Unavailable' }))
+  await page.route('https://api.tcgdex.net/v2/es/sets?**', (route) => new URL(route.request().url()).searchParams.has('sort:field') ? route.fallback() : route.fulfill({ status: 503, body: 'Unavailable' }))
   await page.goto('/')
   await expect(page.getByRole('alert')).toContainText('No se pudo actualizar la lista')
   await expect(page.getByRole('button', { name: /base1-58.*Pikachu/ })).toBeVisible()
@@ -142,7 +144,7 @@ test('presenta errores del proveedor y permite reintentar', async ({ page }) => 
   await page.route('https://api.tcgdex.net/v2/**', (route) => route.fulfill({ status: 503, body: 'Unavailable' }))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toBeVisible({ timeout: 15000 })
-  await expect(page.getByRole('button', { name: 'Reintentar' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Reintentar', exact: true })).toBeVisible()
 })
 
 test('muestra el precio de Blastoise holo sin confundirlo con la oferta española mínima', async ({ page }) => {
@@ -193,7 +195,7 @@ test('combina filtros, conserva la consulta al paginar y permite limpiar', async
   })
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click()
   const resetUrl = new URL((await reset).url())
-  expect([...resetUrl.searchParams.keys()].sort()).toEqual(['pagination:itemsPerPage', 'pagination:page'])
+  expect([...resetUrl.searchParams.keys()].sort()).toEqual(['pagination:itemsPerPage', 'pagination:page', 'set.serie.id'])
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   await expect(page.getByLabel('Nombre exacto', { exact: true })).not.toBeChecked()
   await expect(page.getByLabel('Sólo con imagen', { exact: true })).not.toBeChecked()
