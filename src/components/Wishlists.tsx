@@ -294,7 +294,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#34d399', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', display: 'inline-block' }}></span>
-          TU ARCHIVO DE ENTRENADOR
+          LAS CARTAS DE TUS DESEOS
         </div>
         
         <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#ffffff' }}>
