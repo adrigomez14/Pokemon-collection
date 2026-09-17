@@ -9,11 +9,12 @@ const cards = [brief('099', 'Común'), brief('009', 'Uncommon'), brief('001', 'H
 function mockCatalog(source = cards) {
   const fetch = vi.fn(async (input: string) => {
     const url = new URL(input)
-    if (url.pathname.endsWith('/sets')) return new Response(JSON.stringify([{ id: 'test', name: 'Nueva', cardCount: { total: source.length, official: source.length } }]))
+    if (url.pathname.endsWith('/sets')) return new Response(JSON.stringify([...new Set(['test', ...source.map((item) => item.id.slice(0, item.id.lastIndexOf('-')))])].map((id) => ({ id, name: id, cardCount: { total: source.length, official: source.length } }))))
     if (url.pathname.endsWith('/rarities')) return new Response(JSON.stringify([...new Set(source.map((item) => item.rarity).filter(Boolean))]))
+    if (url.searchParams.has('set.serie.id')) return new Response('[]')
     const rarities = url.searchParams.get('rarity')?.slice(3).split('|')
-    const set = url.searchParams.get('set.id')?.slice(3)
-    const result = source.filter((item) => (!set || item.id.startsWith(`${set}-`)) && (!rarities || rarities.includes(item.rarity ?? '')))
+    const sets = url.searchParams.get('set.id')?.slice(3).split('|')
+    const result = source.filter((item) => (!sets || sets.some((set) => item.id.startsWith(`${set}-`))) && (!rarities || rarities.includes(item.rarity ?? '')))
     return new Response(JSON.stringify(result))
   })
   vi.stubGlobal('fetch', fetch)
@@ -72,19 +73,26 @@ describe('Catálogo por rareza', () => {
     expect(first.slice(0, 7).map((item) => item.localId)).toEqual(['5', '4', '3', '2', '1', '30', '29'])
     expect(second.map((item) => item.localId)).toEqual(['11', '10', '9', '8', '7', '6'])
     expect(new Set([...first, ...second].map((item) => item.id)).size).toBe(30)
-    expect(fetch.mock.calls.length - calls).toBe(1) // Se reutiliza la clasificación de rareza.
+    // Se actualiza el índice físico y el listado, pero se reutiliza la clasificación de rareza.
+    expect(fetch.mock.calls.slice(calls).map(([input]) => new URL(input).pathname)).toEqual(['/v2/es/sets', '/v2/es/cards'])
     expect(await searchCards('es', { ...search, page: 3 })).toEqual([])
   })
   it('combina rarezas del mismo nivel en una petición con el filtro OR verificado', async () => {
     const fetch = mockCatalog([brief('1', 'Rare Holo'), brief('2', 'Holo Rare')])
-    await searchCards('en', search)
+    expect((await searchCards('en', search)).map((item) => item.id)).toEqual(['test-2', 'test-1'])
     const grouped = fetch.mock.calls.map(([input]) => new URL(input).searchParams.get('rarity')).filter(Boolean)
     expect(grouped).toEqual(['eq:Holo Rare|Rare Holo'])
+    for (const [input] of fetch.mock.calls) {
+      const url = new URL(input)
+      if (!url.searchParams.has('rarity')) continue
+      expect([...url.searchParams.keys()].sort()).toEqual(['rarity', 'set.id'])
+      expect(url.searchParams.get('set.id')).toBe('eq:test')
+    }
   })
   it('conserva filtros en el listado y no vuelve a clasificar si ya se elige una sola rareza', async () => {
     const fetch = mockCatalog([brief('2', 'Común'), brief('10', 'Común')])
     const result = await searchCards('es', { ...search, name: 'Carta', exactName: true, number: '2', category: 'Pokémon', type: 'Agua', imageOnly: true, rarity: 'Común' })
-    const url = new URL(fetch.mock.calls[0][0])
+    const url = new URL(fetch.mock.calls[1][0])
     expect(url.searchParams.get('name')).toBe('eq:Carta')
     expect(url.searchParams.get('id')).toBe('like:*-2')
     expect(url.searchParams.get('category')).toBe('eq:Pokémon')
@@ -92,12 +100,12 @@ describe('Catálogo por rareza', () => {
     expect(url.searchParams.get('image')).toBe('notnull:')
     expect(url.searchParams.get('rarity')).toBe('eq:Común')
     expect(result.map((item) => item.localId)).toEqual(['10', '2'])
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
   it('no consulta rarezas cuando la búsqueda no devuelve cartas', async () => {
     const fetch = mockCatalog([])
     expect(await searchCards('es', search)).toEqual([])
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch.mock.calls.map(([input]) => new URL(input).pathname)).toEqual(['/v2/es/sets', '/v2/es/cards'])
   })
   it('separa la caché por idioma y expansión y la invalida al actualizar', async () => {
     const fetch = mockCatalog([...cards, brief('1', 'Rara', 'other')])
@@ -147,7 +155,7 @@ describe('Catálogo por rareza', () => {
     await expect(searchCards('es', { ...search, set: '', sort: 'rarity-desc' })).rejects.toThrow('Selecciona una expansión')
     expect(fetch).not.toHaveBeenCalled()
     await searchCards('es', { ...search, sort: 'number-desc', page: 2 })
-    const url = new URL(fetch.mock.calls[0][0])
+    const url = new URL(fetch.mock.calls[1][0])
     expect(url.searchParams.get('sort:field')).toBe('localId')
     expect(url.searchParams.get('sort:order')).toBe('DESC')
     expect(url.searchParams.get('pagination:page')).toBe('2')

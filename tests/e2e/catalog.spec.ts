@@ -6,6 +6,10 @@ test('el tema de entrenador conserva controles legibles sin desbordar en distint
   await page.goto('/')
   await expect(page.getByRole('region', { name: 'Tu aventura Pokémon TCG' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Tu aventura empieza')
+  await expect(page.locator('.search-panel').getByRole('button', { name: 'Refrescar catálogo', exact: true })).toHaveText('Refrescar')
+  await expect(page.locator('.catalog-sync')).toHaveCount(0)
+  await expect(page.getByText('expansiones disponibles', { exact: false })).toHaveCount(0)
+  await expect(page.getByText('Última consulta:', { exact: false })).toHaveCount(0)
   for (const width of [320, 390, 768, 1365]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(page.getByRole('button', { name: 'Buscar cartas', exact: true })).toBeVisible()
@@ -20,6 +24,11 @@ test('inicia sin nombre y consulta la expansión más reciente sin fijar su ID',
     { id: 'latest-test', name: 'Última expansión', cardCount: { total: 50, official: 50 } },
     { id: 'old-test', name: 'Anterior', cardCount: { total: 100, official: 100 } },
   ] }))
+  await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => {
+    const url = new URL(route.request().url())
+    const sets = url.searchParams.get('set.id')?.slice(3).split('|')
+    return route.fulfill({ json: url.searchParams.has('set.serie.id') ? [] : ['latest-test', 'old-test'].filter((id) => sets?.includes(id)).map((id) => ({ ...card, id: `${id}-58` })) })
+  })
   const first = page.waitForRequest((request) => new URL(request.url()).pathname === '/v2/es/cards')
   await page.goto('/')
   const url = new URL((await first).url())
@@ -28,12 +37,14 @@ test('inicia sin nombre y consulta la expansión más reciente sin fijar su ID',
   await expect(page.getByLabel('Ordenar por', { exact: true })).toHaveValue('rarity-desc')
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   await expect(page.getByLabel('Expansión', { exact: true })).toHaveValue('__latest__')
+  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(1)
   const all = page.waitForRequest((request) => {
     const u = new URL(request.url())
-    return u.pathname === '/v2/es/cards' && !u.searchParams.has('set.id')
+    return u.pathname === '/v2/es/cards' && u.searchParams.get('set.id') === 'eq:old-test|latest-test'
   })
   await page.getByLabel('Expansión', { exact: true }).selectOption('')
-  await all
+  expect(new URL((await all).url()).searchParams.has('set.serie.id')).toBe(false)
+  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(2)
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
 })
 
@@ -45,6 +56,7 @@ test.beforeEach(async ({ page }) => {
     if (url.pathname.endsWith('/categories')) return route.fulfill({ json: ['Pokémon', 'Entrenador', 'Energía'] })
     if (url.pathname.endsWith('/types')) return route.fulfill({ json: ['Agua', 'Rayo'] })
     if (url.pathname.endsWith('/rarities')) return route.fulfill({ json: ['Común', 'Rara Ilustración Especial'] })
+    if (url.pathname.endsWith('/cards') && url.searchParams.has('set.serie.id')) return route.fulfill({ json: [] })
     const detail = /\/cards\//.test(url.pathname)
     const noResults = url.searchParams.get('name') === 'like:no-existe'
     await route.fulfill({ json: detail ? card : noResults ? [] : [card, { id: 'base1-1', name: 'Sin imagen', localId: '1', image: null }] })
@@ -85,6 +97,11 @@ test('filtra, cambia a japonés y no desborda la pantalla', async ({ page }) => 
 
 test('incorpora expansiones nuevas al recargar y seleccionarlas elimina el nombre anterior', async ({ page }) => {
   let includeNew = false
+  await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('set.id') !== 'eq:future-test') return route.fallback()
+    return route.fulfill({ json: url.searchParams.has('set.serie.id') ? [] : [{ ...card, id: 'future-test-58' }] })
+  })
   await page.route('https://api.tcgdex.net/v2/es/sets?**', (route) => new URL(route.request().url()).searchParams.has('sort:field') ? route.fallback() : route.fulfill({ json: [
     { id: 'base1', name: 'Base Set', cardCount: { total: 102, official: 102 } },
     ...(includeNew ? [{ id: 'future-test', name: 'Nueva expansión de prueba', cardCount: { total: 120, official: 100 } }] : []),
@@ -93,13 +110,15 @@ test('incorpora expansiones nuevas al recargar y seleccionarlas elimina el nombr
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option')).toHaveCount(3)
   await page.getByLabel('Nombre de carta').fill('Pikachu')
   includeNew = true
-  await page.getByRole('button', { name: 'Actualizar catálogo', exact: true }).click()
+  await page.getByRole('button', { name: 'Refrescar catálogo', exact: true }).click()
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option')).toHaveCount(4)
   const request = page.waitForRequest((req) => new URL(req.url()).searchParams.get('set.id') === 'eq:future-test')
   await page.getByLabel('Expansión', { exact: true }).selectOption('future-test')
   const url = new URL((await request).url())
   expect(url.searchParams.has('name')).toBe(false)
   expect(url.searchParams.has('pagination:page')).toBe(false)
+  expect(url.searchParams.has('set.serie.id')).toBe(false)
+  await expect(page.getByRole('button', { name: /future-test-58.*Pikachu/ })).toBeVisible()
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
@@ -115,7 +134,7 @@ test('actualiza automáticamente el índice de expansiones con el catálogo abie
   })
   await page.goto('/')
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option[value="initial-test"]')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: 'Actualizar catálogo', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Refrescar catálogo', exact: true })).toBeEnabled()
   const initialQueries = queries
   includeNew = true
   await page.clock.fastForward('15:00')
@@ -123,7 +142,7 @@ test('actualiza automáticamente el índice de expansiones con el catálogo abie
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option[value="new-test"]')).toHaveCount(1)
 })
 
-test('un fallo del índice no impide buscar cartas por nombre', async ({ page }) => {
+test('un fallo del índice de opciones no impide mostrar novedades del índice físico ordenado', async ({ page }) => {
   await page.route('https://api.tcgdex.net/v2/es/sets?**', (route) => new URL(route.request().url()).searchParams.has('sort:field') ? route.fallback() : route.fulfill({ status: 503, body: 'Unavailable' }))
   await page.goto('/')
   await expect(page.getByRole('alert')).toContainText('No se pudo actualizar la lista')
@@ -148,7 +167,12 @@ test('presenta errores del proveedor y permite reintentar', async ({ page }) => 
 })
 
 test('muestra el precio de Blastoise holo sin confundirlo con la oferta española mínima', async ({ page }) => {
-  await page.route('https://api.tcgdex.net/v2/es/cards**', (route) => route.fulfill({ json: new URL(route.request().url()).pathname.includes('/cards/') ? holoOnlyCard : [holoOnlyCard] }))
+  await page.route('https://api.tcgdex.net/v2/es/sets?**', (route) => route.fulfill({ json: [{ id: 'sv03.5', name: '151', cardCount: { total: 1, official: 1 } }] }))
+  await page.route('https://api.tcgdex.net/v2/es/sets/sv03.5', (route) => route.fulfill({ json: { id: 'sv03.5', name: '151', serie: { id: 'sv' }, cardCount: { total: 1, official: 1 }, cards: [holoOnlyCard] } }))
+  await page.route('https://api.tcgdex.net/v2/es/cards**', (route) => {
+    const url = new URL(route.request().url())
+    return route.fulfill({ json: url.pathname.includes('/cards/') ? holoOnlyCard : url.searchParams.has('set.serie.id') ? [] : [holoOnlyCard] })
+  })
   await page.goto('/')
   await page.getByRole('button', { name: /sv03.5-200.*Blastoise ex/ }).click()
   const modal = page.getByRole('dialog')
@@ -162,7 +186,7 @@ test('muestra el precio de Blastoise holo sin confundirlo con la oferta español
 })
 
 test('combina filtros, conserva la consulta al paginar y permite limpiar', async ({ page }) => {
-  await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => route.fulfill({ json: Array.from({ length: 24 }, (_, i) => ({ ...card, id: `test-${i}`, name: `Carta ${i}` })) }))
+  await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => route.fulfill({ json: new URL(route.request().url()).searchParams.has('set.serie.id') ? [] : Array.from({ length: 24 }, (_, i) => ({ ...card, id: `base1-${i}`, name: `Carta ${i}` })) }))
   await page.goto('/')
   await page.getByLabel('Categoría de carta').selectOption('Pokémon')
   await page.getByLabel('Expansión', { exact: true }).selectOption('base1')
@@ -195,7 +219,9 @@ test('combina filtros, conserva la consulta al paginar y permite limpiar', async
   })
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click()
   const resetUrl = new URL((await reset).url())
-  expect([...resetUrl.searchParams.keys()].sort()).toEqual(['pagination:itemsPerPage', 'pagination:page', 'set.serie.id'])
+  expect([...resetUrl.searchParams.keys()].sort()).toEqual(['pagination:itemsPerPage', 'pagination:page', 'set.id'])
+  expect(resetUrl.searchParams.get('set.id')).toBe('eq:base1')
+  await expect(page.getByLabel('Resultados del catálogo').getByRole('button')).toHaveCount(24)
   await expect(page.getByLabel('Nombre de carta')).toHaveValue('')
   await expect(page.getByLabel('Nombre exacto', { exact: true })).not.toBeChecked()
   await expect(page.getByLabel('Sólo con imagen', { exact: true })).not.toBeChecked()
@@ -230,7 +256,7 @@ test('un fallo de las opciones avanzadas no bloquea la búsqueda y permite recar
   await page.getByRole('button', { name: 'Buscar cartas', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'No encontramos esas cartas' })).toBeVisible()
   failing = false
-  await page.getByRole('button', { name: 'Actualizar catálogo', exact: true }).click()
+  await page.getByRole('button', { name: 'Refrescar catálogo', exact: true }).click()
   await page.getByLabel('Rareza', { exact: true }).selectOption('Común')
   await expect(page.getByText('No se pudieron cargar las opciones.', { exact: false })).toHaveCount(0)
 })
@@ -252,6 +278,7 @@ test('ordena toda la expansión por rareza antes de paginar y permite volver al 
   const cards = Array.from({ length: 30 }, (_, i) => ({ id: `base1-${i + 1}`, localId: String(i + 1), name: `Carta ${i + 1}`, rarity: i < 5 ? 'Rara Ilustración Especial' : 'Común' }))
   await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => {
     const url = new URL(route.request().url())
+    if (url.searchParams.has('set.serie.id')) return route.fulfill({ json: [] })
     const rarity = url.searchParams.get('rarity')?.slice(3).split('|')
     let result = rarity ? cards.filter((card) => rarity.includes(card.rarity)) : cards
     if (url.searchParams.has('pagination:page')) {
@@ -277,3 +304,56 @@ test('ordena toda la expansión por rareza antes de paginar y permite volver al 
   await expect(page.getByLabel('Ordenar por', { exact: true })).toHaveValue('catalog')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
+
+for (const language of ['es', 'en', 'ja']) {
+  test(`muestra resultados físicos no vacíos en novedades, global y expansiones sin incluir Pocket (${language})`, async ({ page }) => {
+    const physicalCards = [holoOnlyCard, card]
+    const pocketCard = { ...card, id: 'A1-1', name: 'Solo Pocket' }
+    const sets = [
+      { id: 'A1', name: 'Pocket', serie: { id: 'tcgp' }, cardCount: { total: 1, official: 1 } },
+      { id: 'sv03.5', name: '151', serie: { id: 'sv' }, cardCount: { total: 1, official: 1 } },
+      { id: 'base1', name: 'Base Set', serie: { id: 'base' }, cardCount: { total: 1, official: 1 } },
+    ]
+    const cardRequests: URL[] = []
+    await page.route('https://api.tcgdex.net/v2/**', (route) => {
+      const url = new URL(route.request().url())
+      if (url.pathname.endsWith('/sets')) return route.fulfill({ json: url.searchParams.get('serie.id') === 'neq:tcgp' ? sets.filter((set) => set.serie.id !== 'tcgp') : sets })
+      if (/\/sets\/[^/]+$/.test(url.pathname)) {
+        const set = sets.find((set) => url.pathname.endsWith(`/${set.id}`))!
+        return route.fulfill({ json: { ...set, cards: [...physicalCards, pocketCard].filter((item) => item.id.startsWith(`${set.id}-`)) } })
+      }
+      if (url.pathname.endsWith('/rarities')) return route.fulfill({ json: [...new Set(physicalCards.map((item) => item.rarity))] })
+      if (/\/(categories|types)$/.test(url.pathname)) return route.fulfill({ json: [] })
+      if (url.pathname.endsWith('/cards')) {
+        cardRequests.push(url)
+        // Igual que la API real: el filtro anidado no soportado produce un falso vacío.
+        if (url.searchParams.has('set.serie.id')) return route.fulfill({ json: [] })
+        const ids = url.searchParams.get('set.id')?.slice(3).split('|')
+        const rarities = url.searchParams.get('rarity')?.slice(3).split('|')
+        const result = [...physicalCards, pocketCard].filter((item) => (!ids || ids.some((id) => item.id.startsWith(`${id}-`))) && (!rarities || rarities.includes(item.rarity!)))
+        return route.fulfill({ json: result })
+      }
+      return route.fulfill({ status: 404 })
+    })
+    await page.goto('/')
+    if (language !== 'es') await page.getByLabel('Idioma de las cartas').selectOption(language)
+    const results = page.getByLabel('Resultados del catálogo').getByRole('heading', { level: 3 })
+    await expect(results).toHaveText(['Blastoise ex'])
+    const expansion = page.getByLabel('Expansión', { exact: true })
+    await expect(expansion.locator('option[value="A1"]')).toHaveCount(0)
+    await expansion.selectOption('')
+    await expect(results).toHaveText(['Blastoise ex', 'Pikachu'])
+    await expansion.selectOption('base1')
+    await expect(results).toHaveText(['Pikachu'])
+    await expansion.selectOption('sv03.5')
+    await expect(results).toHaveText(['Blastoise ex'])
+    const requests = cardRequests.filter((url) => url.pathname === `/v2/${language}/cards`)
+    expect(requests.map((url) => url.searchParams.get('set.id'))).toEqual(expect.arrayContaining(['eq:sv03.5', 'eq:base1', 'eq:sv03.5|base1']))
+    for (const url of requests) {
+      expect(url.searchParams.has('set.serie.id')).toBe(false)
+      expect(url.searchParams.get('set.id')).not.toContain('A1')
+      if (url.searchParams.has('rarity')) expect([...url.searchParams.keys()].sort()).toEqual(['rarity', 'set.id'])
+    }
+    await expect(page.getByRole('heading', { name: 'No encontramos esas cartas' })).toHaveCount(0)
+  })
+}

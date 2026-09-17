@@ -3,7 +3,6 @@ import { briefSchema, cardSchema, type Language } from './models'
 import { rarityRank } from './rarity'
 
 const BASE = 'https://api.tcgdex.net/v2'
-const PHYSICAL_CARDS = { 'set.serie.id': 'neq:tcgp' }
 const PHYSICAL_SETS = { 'serie.id': 'neq:tcgp' }
 export const PAGE_SIZE = 24
 export const LATEST_SET = '__latest__'
@@ -51,7 +50,7 @@ export async function searchCards(language: Language, search: Search, signal?: A
   const byOwnership = search.ownership === 'missing' || search.ownership === 'owned'
   if (byOwnership && (!search.set.trim() || !ownedIds)) throw new Error('Selecciona una expansión e inicia sesión para consultar las cartas que tienes o te faltan.')
   if (sort === 'rarity-desc' && !search.set.trim()) throw new Error('Selecciona una expansión para ordenar por rareza.')
-  const params = new URLSearchParams({ ...PHYSICAL_CARDS, 'pagination:page': String(search.page), 'pagination:itemsPerPage': String(PAGE_SIZE) })
+  const params = new URLSearchParams({ 'pagination:page': String(search.page), 'pagination:itemsPerPage': String(PAGE_SIZE) })
   if (search.name.trim()) params.set('name', `${search.exactName ? 'eq:' : 'like:'}${search.name.trim()}`)
   if (search.set.trim() && search.set !== LATEST_SET) params.set('set.id', `eq:${search.set.trim()}`)
   if (search.number.trim()) {
@@ -67,6 +66,17 @@ export async function searchCards(language: Language, search: Search, signal?: A
   if (sort !== 'catalog' && sort !== 'rarity-desc') {
     params.set('sort:field', sort.startsWith('name-') ? 'name' : 'localId')
     params.set('sort:order', sort.endsWith('-desc') ? 'DESC' : 'ASC')
+  }
+  if (search.set !== LATEST_SET) {
+    // /cards no resuelve set.serie.id: ese filtro devuelve [] también para cartas físicas.
+    // Resolver IDs desde /sets y filtrarlos en el servidor ANTES de paginar.
+    const physicalSets = await getSets(language, signal)
+    if (!physicalSets.length) return []
+    if (search.set.trim()) {
+      if (!physicalSets.some((set) => set.id === search.set.trim())) return []
+    } else {
+      params.set('set.id', `eq:${physicalSets.map((set) => set.id).join('|')}`)
+    }
   }
   if (search.set === LATEST_SET) {
     // La API ordena expansiones por lanzamiento, pero ignora ese campo en cartas.
@@ -126,7 +136,7 @@ async function getRarityRanks(language: Language, setFilter: string, signal?: Ab
     while (next < queue.length) {
       combined.throwIfAborted()
       const [rank, names] = queue[next++]
-      const params = new URLSearchParams({ ...PHYSICAL_CARDS, 'set.id': setFilter, rarity: `eq:${names.join('|')}` })
+      const params = new URLSearchParams({ 'set.id': setFilter, rarity: `eq:${names.join('|')}` })
       const cards = z.array(briefSchema).parse(await request(`${language}/cards?${params}`, combined))
       for (const card of cards) ranks.set(card.id, rank)
     }

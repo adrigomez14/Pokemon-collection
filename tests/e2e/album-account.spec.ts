@@ -52,7 +52,8 @@ async function setup(page: Page) {
     if (/\/(categories|types)$/.test(url.pathname)) return route.fulfill({ json: [] })
     if (/\/cards\//.test(url.pathname)) return route.fulfill({ json: url.pathname.endsWith('/base1-1') ? other : card })
     if (url.pathname.endsWith('/cards')) {
-      expect(url.searchParams.get('set.serie.id')).toBe('neq:tcgp')
+      expect(url.searchParams.has('set.serie.id')).toBe(false)
+      expect(url.searchParams.get('set.id')).toBe('eq:base1')
       const rarity = url.searchParams.get('rarity')?.slice(3).split('|')
       return route.fulfill({ json: rarity ? catalogCards.filter((item) => rarity.includes(item.rarity)) : catalogCards })
     }

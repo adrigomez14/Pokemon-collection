@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search as SearchIcon, SlidersHorizontal } from 'lucide-react'
 import { catalogSort, clearRarityCache, getFilterValues, getSets, LATEST_SET, sortOptions, type FilterField, type Search } from '../lib/catalog'
-import { languages, type Language } from '../lib/models'
+import type { Language } from '../lib/models'
 
 export function CatalogSearch({ language, search, onSearch }: { language: Language; search: Search; onSearch: (search: Search) => void }) {
   const client = useQueryClient()
@@ -55,7 +55,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
         <label>Número<input aria-label="Número de carta" name="number" placeholder="Ej. 025, 200" value={draft.number} onChange={(e) => change('number', e.target.value)} maxLength={50} pattern="[a-zA-Z0-9\-]+" title="Número o código exacto, conservando ceros iniciales; sin barras ni comodines." /></label>
         <button className="primary search-submit" type="submit"><SearchIcon size={16} />Buscar cartas</button>
       </div>
-      <div className="search-checks"><label className="check-label"><input type="checkbox" checked={draft.exactName ?? false} onChange={(e) => change('exactName', e.target.checked)} />Nombre exacto</label><label className="check-label"><input type="checkbox" checked={draft.imageOnly ?? false} onChange={(e) => change('imageOnly', e.target.checked)} />Sólo con imagen</label></div>
+      <div className="search-checks"><label className="check-label"><input type="checkbox" checked={draft.exactName ?? false} onChange={(e) => change('exactName', e.target.checked)} />Nombre exacto</label><label className="check-label"><input type="checkbox" checked={draft.imageOnly ?? false} onChange={(e) => change('imageOnly', e.target.checked)} />Sólo con imagen</label><button type="button" aria-label="Refrescar catálogo" title="Refrescar catálogo" disabled={refreshing || sets.isFetching} onClick={() => void refresh()}><RefreshCw size={16} className={refreshing || sets.isFetching ? 'spin' : ''} />Refrescar</button></div>
       {draft.exactName && <p className="search-hint">El nombre exacto distingue mayúsculas y minúsculas según TCGdex.</p>}
       {draft.set === LATEST_SET && <p className="search-hint">Novedades: expansión física más reciente por fecha de lanzamiento en TCGdex para este idioma. Pokémon TCG Pocket queda excluido.</p>}
       <details className="advanced-filters" open={advanced} onToggle={(e) => setAdvanced(e.currentTarget.open)}>
@@ -68,15 +68,8 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
       </details>
       <div className="search-bottom"><label>Ordenar por<select aria-label="Ordenar por" value={catalogSort(draft)} onChange={(e) => apply({ ...draft, sort: e.target.value as Search['sort'] })}>{Object.entries(sortOptions).map(([key, label]) => <option key={key} value={key} disabled={key === 'rarity-desc' && !draft.set}>{label}</option>)}</select></label><button type="button" className="text-button" onClick={() => apply({ name: '', set: '', number: '', page: 1 })}>Limpiar filtros</button></div>
       {catalogSort(draft) === 'rarity-desc' && <p className="search-hint">Rarezas especiales primero y comunes al final. Dentro de cada nivel, número descendente. Las categorías sin equivalencia se agrupan aparte; este orden no indica el precio.</p>}
+      {sets.isError && <p className="search-hint" role="alert">No se pudo actualizar la lista de expansiones. Pulsa «Refrescar» para reintentar.</p>}
     </form>
-    <div className="catalog-sync">
-      <div><strong>{sets.data ? `${sets.data.length} expansiones disponibles · ${languages[language]}` : sets.isPending ? 'Consultando expansiones…' : 'Índice de expansiones no disponible'}</strong>
-        <p>Las novedades aparecen cuando TCGdex las publica en este idioma, sin redesplegar la web. La cobertura puede ser incompleta.</p>
-        {sets.dataUpdatedAt > 0 && <small>Última consulta: {new Date(sets.dataUpdatedAt).toLocaleString('es-ES')} · comprobación automática cada 15 minutos con el catálogo abierto.</small>}
-        {sets.isError && <p role="alert">No se pudo actualizar la lista de expansiones. Puedes seguir buscando por nombre o ID y reintentar.</p>}
-      </div>
-      <button type="button" disabled={refreshing || sets.isFetching} onClick={() => void refresh()}><RefreshCw size={16} className={refreshing || sets.isFetching ? 'spin' : ''} />Actualizar catálogo</button>
-    </div>
   </>
 }
 
@@ -86,5 +79,5 @@ function CatalogFilter({ language, field, label, value, onChange }: { language: 
     <option value="">Todas las opciones</option>
     {value && !values.data?.includes(value) && <option value={value}>{value}</option>}
     {values.data?.map((item) => <option key={item} value={item}>{item}</option>)}
-  </select>{values.isError && <small>No se pudieron cargar las opciones. Usa «Actualizar catálogo» para reintentar.</small>}</label>
+  </select>{values.isError && <small>No se pudieron cargar las opciones. Usa «Refrescar» para reintentar.</small>}</label>
 }
