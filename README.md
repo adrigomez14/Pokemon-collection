@@ -1,5 +1,7 @@
 # Pokéfolio · Tu colección Pokémon TCG
 
+**Notificaciones de contacto por Gmail:** sigue [CONTACTO.md](CONTACTO.md). Esta mejora incluye una función privada de Vercel y una nueva migración de límites; crear variables SMTP por sí solo no activa los avisos.
+
 Aplicación web personal en español, adaptable a móvil y ordenador. React + TypeScript + Vite en el navegador; Supabase para autenticación y PostgreSQL; TCGdex para catálogo, imágenes y referencias de Cardmarket.
 
 ## Qué puedes hacer
@@ -131,9 +133,9 @@ TCGdex puede carecer de imágenes de ciertas cartas o idiomas. En ese caso se mu
 ## Actualizar una instalación ya publicada
 
 1. Exporta tu colección como copia de seguridad.
-2. Si ya ejecutaste la migración de enlaces, **no ejecutes SQL de nuevo**: esta actualización de filtros y precios no cambia la base de datos. Sólo si todavía no aplicaste [supabase/migrations/002_cardmarket_links.sql](supabase/migrations/002_cardmarket_links.sql), ejecútala una vez en tu proyecto existente. No vuelvas a ejecutar la primera migración.
+2. No repitas migraciones ya aplicadas. Para los avisos de contacto, sigue [CONTACTO.md](CONTACTO.md): aplica la migración de contacto si falta y la nueva [supabase/migrations/004_feedback_limits.sql](supabase/migrations/004_feedback_limits.sql) una vez, antes de activar el webhook. La colección no cambia. Si todavía falta [supabase/migrations/002_cardmarket_links.sql](supabase/migrations/002_cardmarket_links.sql), aplícala antes en orden; no vuelvas a ejecutar la primera migración.
 3. Sube los cambios de este proyecto a tu repositorio personal, manteniendo las carpetas completas y excluyendo `.env.local`, dependencias, compilaciones y copias de la colección. La carpeta `pokemon-collection-para-github` preparada anteriormente es una foto antigua: no se actualiza sola al editar el proyecto original.
-4. Despliega el nuevo commit de `main` en Vercel. No hay nuevas variables de entorno ni cambios en las URLs de Supabase.
+4. Despliega el nuevo commit de `main` en Vercel. Los avisos de Gmail requieren las seis variables privadas indicadas en [CONTACTO.md](CONTACTO.md) y el webhook de Supabase. No cambies las dos variables públicas del frontend ni las URLs de autenticación por esta mejora.
 5. En la web publicada, prueba los filtros y pulsa **Mi colección → Actualizar precios** para actualizar las fichas antiguas. Abre un precio con enlace de producto guardado y comprueba el idioma. La publicación de esta mejora requiere este despliegue; las nuevas expansiones que publique después TCGdex no.
 
 ## Copias de seguridad

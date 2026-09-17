@@ -70,7 +70,8 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   await popup.close()
   await page.getByRole('button', { name: 'Actualizar precios', exact: true }).click()
   await expect(page.getByRole('link', { name: /12,50.*Ver producto en Cardmarket/ })).toHaveAttribute('href', productUrl)
-  await expect(page.getByLabel('Resumen de tu colección')).toContainText('37,50 €')
+  // El panel nuevo y las estadísticas comparten nombre; comprobar el bloque de valoración.
+  await expect(page.getByRole('region', { name: 'Resumen de tu colección' }).filter({ has: page.getByText('Valoración orientativa', { exact: true }) })).toContainText('37,50 €')
   // Excel incluye la colección completa, incluso cuando el filtro oculta el registro.
   await page.getByLabel('Buscar en mi colección').fill('no-coincide')
   await expect(page.getByRole('heading', { name: 'Sin coincidencias' })).toBeVisible()

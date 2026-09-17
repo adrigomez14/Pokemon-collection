@@ -12,6 +12,7 @@ export const feedbackInputSchema = z.object({
 export type FeedbackInput = z.infer<typeof feedbackInputSchema>
 
 function feedbackError(error: { code?: string; message: string }) {
+  if (error.code === 'P0001' && error.message.includes('feedback_rate_limit')) return new Error('El buzón ha alcanzado temporalmente su límite de mensajes. Inténtalo más tarde.')
   if (error.code === 'PGRST205' || error.code === 'PGRST204' || error.code === '42P01') return new Error('Falta preparar la base de datos. Ejecuta la migración 003_feedback.sql en Supabase.')
   if (error.code === '23514' || error.code === '22023') return new Error('El mensaje no es válido. Revisa su contenido y su longitud (máximo 4000 caracteres).')
   return new Error('No se ha podido enviar tu mensaje. Comprueba tu conexión e inténtalo de nuevo.')
