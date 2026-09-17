@@ -1,6 +1,286 @@
-return <section className="wishlist-page" aria-labelledby={headingId} style={{ padding: '24px 0' }}>
+import { createContext, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { ExternalLink, Heart, LockKeyhole, Plus, Trash2, ArrowRight } from 'lucide-react'
+import { languages, type CardBrief, type Language } from '../lib/models'
+import {
+  addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists, removeWishlistItem,
+  renameWishlist, wishlistCardKey, wishlistErrorMessage, wishlistNameSchema,
+  type Wishlist, type WishlistData, type WishlistItem,
+} from '../lib/wishlists'
+import { CardImage } from './CardImage'
+import { Modal } from './Modal'
+
+type Write = (userId: string, signal: AbortSignal) => Promise<unknown>
+type Snapshot = {
+  userId: string | null
+  data: WishlistData | undefined
+  error: string | null
+  fetching: boolean
+  pending: boolean
+  canWrite: boolean
+  run: (write: Write) => Promise<boolean>
+  retry: () => Promise<boolean>
+}
+
+function createScope(userId: string | null) {
+  let snapshot: Snapshot = {
+    userId, data: undefined, error: null, fetching: Boolean(userId), pending: false, canWrite: false,
+    run: async () => false, retry: async () => false,
+  }
+  const listeners = new Set<() => void>()
+  return {
+    userId,
+    getSnapshot: () => snapshot,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    publish: (next: Snapshot) => {
+      snapshot = next
+      listeners.forEach((listener) => listener())
+    },
+  }
+}
+
+type Scope = ReturnType<typeof createScope>
+const WishlistContext = createContext<Scope | null>(null)
+
+function useWishlists() {
+  const scope = useContext(WishlistContext)
+  if (!scope) throw new Error('WishlistProvider debe envolver las listas de deseos.')
+  return useSyncExternalStore(scope.subscribe, scope.getSnapshot, scope.getSnapshot)
+}
+
+export function WishlistProvider({ userId, children }: { userId: string | null; children: ReactNode }) {
+  const scope = useMemo(() => createScope(userId), [userId])
+  return <WishlistContext.Provider value={scope}>
+    <WishlistScope key={userId ?? 'anonymous'} scope={scope} />
+    {children}
+  </WishlistContext.Provider>
+}
+
+function WishlistScope({ scope }: { scope: Scope }) {
+  const { userId } = scope
+  const queryClient = useQueryClient()
+  const queryKey = useMemo(() => ['wishlists', userId] as const, [userId])
+  const query = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => loadWishlists(userId!, signal),
+    enabled: userId !== null,
+    retry: false,
+    gcTime: 0,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    placeholderData: undefined,
+    initialData: undefined,
+  })
+  const [pending, setPending] = useState(false)
+  const [writeError, setWriteError] = useState<string | null>(null)
+  const blockedError = useRef(false)
+  const inFlight = useRef(false)
+  const lifetime = useRef<{ alive: boolean; controller?: AbortController }>({ alive: false })
+
+  useLayoutEffect(() => {
+    const current = { alive: true, controller: undefined as AbortController | undefined }
+    lifetime.current = current
+    return () => {
+      current.alive = false
+      current.controller?.abort()
+      void queryClient.cancelQueries({ queryKey, exact: true }).catch(() => {})
+    }
+  }, [queryClient, queryKey])
+
+  const refetch = query.refetch
+  const perform = useCallback(async (write?: Write): Promise<boolean> => {
+    const current = lifetime.current
+    const state = queryClient.getQueryState<WishlistData>(queryKey)
+    if (!userId || !current.alive || inFlight.current || state?.fetchStatus !== 'idle') return false
+    if (write && (blockedError.current || state.status !== 'success' || state.error || !state.data)) return false
+
+    inFlight.current = true
+    const controller = new AbortController()
+    current.controller = controller
+    setPending(true)
+    try {
+      if (write) await write(userId, controller.signal)
+      if (!current.alive || controller.signal.aborted) return false
+      const confirmed = await refetch({ cancelRefetch: true, throwOnError: true })
+      if (!current.alive || controller.signal.aborted) return false
+      if (!confirmed.isSuccess || confirmed.error || !confirmed.data || confirmed.fetchStatus !== 'idle') {
+        throw new Error('No se ha confirmado la lectura.')
+      }
+      blockedError.current = false
+      setWriteError(null)
+      return true
+    } catch (error) {
+      if (current.alive && !controller.signal.aborted) {
+        blockedError.current = true
+        setWriteError(wishlistErrorMessage(error))
+      }
+      return false
+    } finally {
+      if (current.alive && lifetime.current === current) {
+        current.controller = undefined
+        inFlight.current = false
+        setPending(false)
+      }
+    }
+  }, [queryClient, queryKey, refetch, userId])
+  const run = useCallback((write: Write) => perform(write), [perform])
+  const retry = useCallback(() => perform(), [perform])
+  const fetching = query.fetchStatus !== 'idle'
+  const error = writeError ?? (query.error ? wishlistErrorMessage(query.error) : null)
+
+  useLayoutEffect(() => {
+    const data = pending ? scope.getSnapshot().data : query.data
+    scope.publish({
+      userId, data, error, fetching, pending, run, retry,
+      canWrite: Boolean(userId && data && !error && !fetching && !pending),
+    })
+  }, [scope, userId, query.data, error, fetching, pending, run, retry])
+
+  return null
+}
+
+function WishlistStatus() {
+  const { data, error, fetching, pending, retry } = useWishlists()
+  return <>
+    {error && <div className="wishlist-error" role="alert">
+      <p>{error}</p>
+      <p>{data ? 'Se muestra la última lectura confirmada. Recarga antes de hacer más cambios.' : 'Todavía no se pueden mostrar tus listas.'}</p>
+      <button type="button" className="wishlist-button" disabled={fetching || pending} onClick={() => { void retry() }}>Reintentar carga</button>
+    </div>}
+    {(fetching || pending || (!data && !error)) && <p className="wishlist-status" role="status">
+      {pending ? 'Guardando y confirmando con el servidor…' : data ? 'Actualizando listas…' : 'Cargando listas…'}
+      {fetching && ' Si no avanza, comprueba tu conexión.'}
+    </p>}
+  </>
+}
+
+function WishlistNameForm({ initialName = '', label = 'Nueva lista privada', submitLabel = 'Crear lista', onSave }: {
+  initialName?: string; label?: string; submitLabel?: string; onSave: (name: string) => Promise<boolean>
+}) {
+  const { canWrite } = useWishlists()
+  const [name, setName] = useState(initialName)
+  const [error, setError] = useState<string | null>(null)
+  const id = useId()
+  const alive = useRef(false)
+  useLayoutEffect(() => {
+    alive.current = true
+    return () => { alive.current = false }
+  }, [])
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!canWrite) return
+    const parsed = wishlistNameSchema.safeParse(name)
+    if (!parsed.success) { setError(parsed.error.issues[0].message); return }
+    setError(null)
+    try {
+      if (await onSave(parsed.data) && alive.current) setName('')
+    } catch (failure) {
+      if (alive.current) setError(wishlistErrorMessage(failure))
+    }
+  }
+  return <form className="wishlist-name-form" onSubmit={(event) => { void submit(event) }}>
+    <label className="wishlist-name-label" htmlFor={id}>{label}</label>
+    <div className="wishlist-name-row">
+      <input className="wishlist-name-input" id={id} value={name} maxLength={80} required disabled={!canWrite}
+        aria-describedby={`${id}-hint${error ? ` ${id}-error` : ''}`} aria-invalid={Boolean(error)}
+        onChange={(event) => { setName(event.target.value); setError(null) }} placeholder="Por ejemplo: Próximas cartas" />
+      <button type="submit" className="wishlist-button wishlist-button-primary" disabled={!canWrite || !name.trim()}>
+        <Plus size={17} aria-hidden="true" />{submitLabel}
+      </button>
+    </div>
+    <small className="wishlist-hint" id={`${id}-hint`}>Entre 1 y 80 caracteres. Solo tú puedes ver esta lista.</small>
+    {error && <p className="wishlist-error" role="alert" id={`${id}-error`}>{error}</p>}
+  </form>
+}
+
+type HeartProps = { card: CardBrief; language: Language; onAuth: () => void }
+
+export function WishlistHeart(props: HeartProps) {
+  const { userId } = useWishlists()
+  return <WishlistHeartScope key={JSON.stringify([userId, props.card.id, props.language])} {...props} />
+}
+
+function WishlistHeartScope({ card, language, onAuth }: HeartProps) {
+  const { userId, data, error, fetching, pending, canWrite, run } = useWishlists()
+  const [open, setOpen] = useState(false)
+  const saved = Boolean(userId && data && isCardWished(data.items, card.id, language))
+  return <>
+    <button type="button" className="wish-heart" aria-label={`Listas de deseos de ${card.name}`}
+      aria-pressed={saved} aria-haspopup="dialog" aria-busy={Boolean(userId && (fetching || pending))}
+      disabled={Boolean(userId && pending)} onClick={(event) => {
+        event.stopPropagation()
+        if (!userId) { onAuth(); return }
+        setOpen(true)
+      }}>
+      <Heart size={22} fill={saved ? 'currentColor' : 'none'} aria-hidden="true" />
+    </button>
+    {open && userId && <Modal title="Guardar en listas de deseos" busy={pending} onClose={() => setOpen(false)}>
+      <div className="wishlist-picker">
+        <p className="wishlist-private"><LockKeyhole size={16} aria-hidden="true" />Listas privadas · Solo tú</p>
+        <p className="wishlist-picker-card"><strong>{card.name}</strong><span>{languages[language]} · {card.localId}</span></p>
+        <p className="wishlist-hint">Marca todas las listas que quieras. Cada cambio se guarda al momento y se muestra tras confirmarlo.</p>
+        <WishlistStatus />
+        {data && <>
+          {data.lists.length === 0 ? !error && <p className="wishlist-empty">Aún no tienes listas. Crea una y después márcala para guardar esta carta.</p> :
+            <fieldset className="wishlist-options" disabled={!canWrite}>
+              <legend>Listas para esta carta en {languages[language]}</legend>
+              {data.lists.map((list) => {
+                const checked = isCardWished(data.items, card.id, language, list.id)
+                return <label className="wishlist-option" key={list.id}>
+                  <input type="checkbox" checked={checked} onChange={() => {
+                    void run((owner, signal) => checked
+                      ? removeWishlistItem(owner, list.id, card.id, language, signal)
+                      : addWishlistItem(owner, list.id, card, language, signal))
+                  }} />
+                  <span>{list.name}</span>
+                </label>
+              })}
+            </fieldset>}
+          <WishlistNameForm onSave={(name) => run((owner, signal) => createWishlist(owner, name, signal))} />
+        </>}
+        <div className="wishlist-actions"><button type="button" className="wishlist-button" disabled={pending} onClick={() => setOpen(false)}>Cerrar</button></div>
+      </div>
+    </Modal>}
+  </>
+}
+
+type PageProps = { onAuth: () => void; onOpenCard: (card: CardBrief, language: Language) => void; onExploreCatalog?: () => void }
+type ListDialog = { kind: 'rename'; list: Wishlist } | { kind: 'delete'; list: Wishlist } | { kind: 'remove'; list: Wishlist; item: WishlistItem }
+
+export function WishlistPage(props: PageProps) {
+  const { userId } = useWishlists()
+  return <WishlistPageScope key={userId ?? 'anonymous'} {...props} />
+}
+
+function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) {
+  const { userId, data, error, fetching, pending, canWrite, run, retry } = useWishlists()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<ListDialog | null>(null)
+  const headingId = useId()
+  const selected = data?.lists.find((list) => list.id === selectedId) ?? data?.lists[0]
+  const items = selected ? data?.items.filter((item) => item.list_id === selected.id) : undefined
+
+  const totalWishedItems = data?.items.length ?? 0
+  const totalLists = data?.lists.length ?? 0
+  const featuredItem = data?.items[0]
+
+  const counts = useMemo(() => {
+    const result = new Map<string, number>()
+    data?.items.forEach((item) => result.set(item.list_id, (result.get(item.list_id) ?? 0) + 1))
+    return result
+  }, [data?.items])
+
+  const save = async (write: Write) => {
+    const confirmed = await run(write)
+    if (confirmed) setDialog(null)
+    return confirmed
+  }
+
+  return <section className="wishlist-page" aria-labelledby={headingId} style={{ padding: '24px 0' }}>
     
-    {/* Cabecera adaptada a FONDO CLARO */}
     <div style={{
       display: 'grid',
       gridTemplateColumns: '1fr 320px',
@@ -8,25 +288,21 @@ return <section className="wishlist-page" aria-labelledby={headingId} style={{ p
       alignItems: 'start',
       marginBottom: '40px'
     }}>
-      {/* Columna izquierda: Títulos, subtítulo, botón principal y tarjetas de datos */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#16a34a', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', display: 'inline-block' }}></span>
           TU ESPACIO PRIVADO
         </div>
         
-        {/* Texto principal en oscuro (#0f172a) para que se vea sobre el fondo claro */}
         <h1 id={headingId} style={{ fontSize: '2.8rem', fontWeight: 800, margin: '0 0 8px 0', lineHeight: 1.1, color: '#0f172a' }}>
           {totalWishedItems} {totalWishedItems === 1 ? 'carta guardada.' : 'cartas guardadas.'}
           <span style={{ display: 'block', color: '#f59e0b', fontWeight: 700, marginTop: '4px' }}>Tus próximas adquisiciones.</span>
         </h1>
         
-        {/* Párrafo en gris oscuro */}
         <p style={{ color: '#475569', fontSize: '1.05rem', lineHeight: '1.5', maxWidth: '600px', margin: '16px 0 24px 0' }}>
           Cada hallazgo tiene su sitio. Revisa tus listas privadas, organiza tus objetivos de compra y mantén el seguimiento sin alterar tu colección principal.
         </p>
 
-        {/* Botón amarillo principal */}
         <div style={{ marginBottom: '32px' }}>
           <button 
             type="button" 
@@ -53,7 +329,6 @@ return <section className="wishlist-page" aria-labelledby={headingId} style={{ p
           </span>
         </div>
 
-        {/* Bloque de tarjetas inferiores de estadísticas (Fondos oscurecidos transparentes y números oscuros) */}
         {userId && data && (
           <div style={{ display: 'flex', gap: '16px' }}>
             <div style={{ background: 'rgba(0, 0, 0, 0.03)', border: '1px solid rgba(0, 0, 0, 0.06)', borderRadius: '12px', padding: '16px 24px', minWidth: '150px' }}>
@@ -68,7 +343,6 @@ return <section className="wishlist-page" aria-labelledby={headingId} style={{ p
         )}
       </div>
 
-      {/* Columna derecha: Tarjeta estilo Pokéfolio con la carta destacada */}
       {featuredItem ? (
         <div style={{
           background: '#dc2626',
@@ -77,7 +351,6 @@ return <section className="wishlist-page" aria-labelledby={headingId} style={{ p
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           color: '#0f172a'
         }}>
-          {/* Detalles superiores tipo dispositivo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', padding: '0 4px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#60a5fa', border: '2px solid white' }}></div>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f87171' }}></div>
@@ -85,7 +358,6 @@ return <section className="wishlist-page" aria-labelledby={headingId} style={{ p
             <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 800, color: 'white', letterSpacing: '0.05em' }}>WISHLIST / TCG</span>
           </div>
 
-          {/* Tarjeta interior blanca */}
           <div style={{ background: '#ffffff', borderRadius: '14px', padding: '14px' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Heart size={13} fill="currentColor" color="#dc2626" /> CARTA DESTACADA
@@ -166,7 +438,6 @@ return <section className="wishlist-page" aria-labelledby={headingId} style={{ p
                 </div>
               </div>
 
-              {/* Banner de referido con daxter14 */}
               <div className="cardmarket-referral-banner" style={{
                 background: "var(--background-secondary, #f8f9fa)",
                 border: "1px solid var(--border-color, #e9ecef)",
@@ -209,9 +480,9 @@ return <section className="wishlist-page" aria-labelledby={headingId} style={{ p
                 </li>)}</ul>}
             </section>}
           </div>}
-      </>}.
+      </>}
       {!error && <div className="wishlist-actions"><button type="button" className="wishlist-button" disabled={fetching || pending} onClick={() => { void retry() }}>Actualizar listas</button></div>}
-    </>}.
+    </>}
     {userId && dialog && <Modal title={dialog.kind === 'rename' ? 'Renombrar lista' : dialog.kind === 'delete' ? 'Eliminar lista privada' : 'Quitar carta de esta lista'} busy={pending} onClose={() => setDialog(null)}>
       <div className="wishlist-dialog">
         <WishlistStatus />
