@@ -3,7 +3,7 @@ import { readSheet } from 'read-excel-file/node'
 import { card, entry } from '../fixtures'
 import type { Entry } from '../../src/lib/models'
 
-test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async ({ page }) => {
+test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async ({ page }, testInfo) => {
   // Emula únicamente el transporte HTTP; la seguridad SQL se prueba con Postgres en database.test.ts.
   const user = { id: '11111111-1111-4111-8111-111111111111', aud: 'authenticated', role: 'authenticated', email: 'coleccion@example.com', app_metadata: {}, user_metadata: {}, created_at: '2026-09-16T00:00:00Z' }
   let rows: Entry[] = []
@@ -44,6 +44,20 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   await page.getByLabel('Contraseña', { exact: true }).fill('test-password-only-123')
   await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('navigation').getByRole('button', { name: /Mi colección/ }).click()
+  const summary = page.getByRole('region', { name: 'Tu archivo de entrenador', exact: true })
+  await expect(summary).toContainText('Una favorita por descubrir')
+  await expect(summary.getByRole('progressbar')).toHaveAttribute('value', '0')
+  const viewport = page.viewportSize()!
+  for (const width of [320, 390, 768, 1365]) {
+    await page.setViewportSize({ width, height: 950 })
+    await expect(summary.getByRole('button', { name: 'Explorar catálogo' })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  }
+  await page.setViewportSize(viewport)
+  await summary.screenshot({ path: testInfo.outputPath('coleccion-vacia.png'), scale: 'css', style: '.header, .skip-link { visibility: hidden !important; }' })
+  await summary.getByRole('button', { name: 'Explorar catálogo' }).click()
+  await expect(page.getByRole('region', { name: 'Tu aventura Pokémon TCG' })).toBeVisible()
   await page.getByRole('button', { name: /base1-58.*Pikachu/ }).click()
   await page.getByLabel('Ejemplares que añadir').fill('2')
   const productUrl = 'https://www.cardmarket.com/es/Pokemon/Products/Singles/Base-Set/Pikachu?language=4'
@@ -70,7 +84,12 @@ test('inicia sesión, guarda, recarga, edita, exporta, importa y elimina', async
   await popup.close()
   await page.getByRole('button', { name: 'Actualizar precios', exact: true }).click()
   await expect(page.getByRole('link', { name: /12,50.*Ver producto en Cardmarket/ })).toHaveAttribute('href', productUrl)
-  // El panel nuevo y las estadísticas comparten nombre; comprobar el bloque de valoración.
+  await expect(summary.getByRole('complementary', { name: 'Carta destacada de tu colección' })).toContainText('12,50')
+  await expect(summary).toContainText('3 / 3')
+  await expect(summary).toContainText('Valor manual · por ejemplar')
+  await expect(summary).toContainText('Imagen no disponible')
+  await summary.screenshot({ path: testInfo.outputPath('coleccion-con-cartas.png'), scale: 'css', style: '.header, .skip-link { visibility: hidden !important; }' })
+  // Las estadísticas generales conservan su región y la valoración de todas las copias.
   await expect(page.getByRole('region', { name: 'Resumen de tu colección' }).filter({ has: page.getByText('Valoración orientativa', { exact: true }) })).toContainText('37,50 €')
   // Excel incluye la colección completa, incluso cuando el filtro oculta el registro.
   await page.getByLabel('Buscar en mi colección').fill('no-coincide')

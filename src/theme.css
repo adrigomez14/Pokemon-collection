@@ -160,3 +160,85 @@ footer small, footer > a:last-child { color: #5c7283; }
   .search-bottom .text-button { min-height: 32px; }
   .cards-list .card-tile::before { inset: 0 auto 0 0; height: auto; width: 3px; }
 }
+
+/* Resumen de colección: el mismo lenguaje visual de la Pokédex del catálogo. */
+.collection-hero { grid-template-columns: minmax(0, 1fr) 310px; gap: 44px; min-height: 430px; }
+.collection-hero .hero-copy { min-width: 0; }
+.collection-hero h1 { font-size: clamp(28px, 3vw, 40px); overflow-wrap: anywhere; }
+.collection-hero .hero-copy > p { max-width: 470px; }
+.collection-hero .hero-actions { flex-wrap: wrap; gap: 14px; }
+.collection-hero .hero-note { display: flex; color: #bfd3e2; }
+.collection-passport { display: grid; grid-template-columns: 1fr 1fr minmax(0, 1.35fr); gap: 10px; margin: 28px 0 0; }
+.collection-passport > div { min-width: 0; padding: 12px 13px; background: #071c2b50; border: 1px solid #75a8c333; border-radius: 10px; }
+.collection-passport dt { display: flex; align-items: center; gap: 6px; color: #bfd3e2; font-size: 10px; }
+.collection-passport dt svg { color: #9adbe8; }
+.collection-passport dd { margin: 6px 0 0; color: #fff; font-family: Manrope, system-ui, sans-serif; font-size: 24px; font-weight: 800; line-height: 1.35; overflow-wrap: anywhere; }
+.collection-passport > div:last-child dd { color: #ffdb59; font-size: 20px; }
+.collection-coverage { margin-top: 14px; }
+.collection-coverage progress { display: block; width: 100%; height: 5px; border: 0; border-radius: 5px; overflow: hidden; background: #ffffff16; accent-color: #ffda54; }
+.collection-coverage progress::-webkit-progress-bar { background: #ffffff16; border-radius: 5px; }
+.collection-coverage progress::-webkit-progress-value { background: #ffda54; border-radius: 5px; }
+.collection-coverage progress::-moz-progress-bar { background: #ffda54; border-radius: 5px; }
+.collection-coverage p { margin-top: 8px; color: #b1cddd; font-size: 10px; line-height: 1.7; }
+.collection-display { position: relative; z-index: 1; min-width: 0; width: 100%; max-width: 350px; justify-self: center; padding: 15px; border: 3px solid #99223b; border-radius: 19px 19px 32px 19px; background: linear-gradient(135deg, #f95864, #d92f46 75%); box-shadow: 5px 6px 0 #891e35, 0 16px 28px #04152350, inset 1px 1px #ff9d9d; }
+.collection-device-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 1px 13px; color: #401223; font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+.collection-device-lights { display: flex; align-items: center; gap: 5px; }
+.collection-device-lights i { width: 7px; height: 7px; border: 1px solid #922237; background: #ffdc55; border-radius: 50%; }
+.collection-device-lights i:first-child { height: 24px; width: 24px; border: 3px solid #fff5ec; background: radial-gradient(circle at 32% 28%, #fff 0 7%, #8ef0ff 15%, #28b6db 70%); }
+.collection-device-lights i:last-child { background: #80ddaa; }
+.collection-feature { min-width: 0; border: 2px solid #a8273d; border-radius: 11px 11px 21px 11px; padding: 15px; background: #f4f7f4; }
+.collection-feature-label { display: flex; align-items: center; justify-content: center; gap: 6px; color: #345865; font-size: 9px; font-weight: 800; letter-spacing: .7px; text-align: center; margin-bottom: 12px; }
+.collection-feature-media { padding: 12px; border: 1px solid #c9dcd5; border-radius: 7px; background: radial-gradient(circle at 50% 40%, #fbfff3, #dceee4); }
+.collection-feature-media .card-image { width: 118px; margin: auto; }
+.collection-feature-media .image-missing { gap: 7px; padding: 8px; }
+.collection-feature-media .image-missing span { font-size: 11px; overflow-wrap: anywhere; }
+.collection-feature-media .image-missing small { font-size: 9px; }
+.collection-card-slot { min-height: 162px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 17px; text-align: center; color: #486b67; }
+.collection-card-slot > .pokeball { width: 66px; box-shadow: 0 7px 0 #476b6716; transform: rotate(-12deg); }
+.collection-card-slot > span:last-child { font-size: 8px; letter-spacing: 1px; font-weight: 700; }
+.collection-feature-detail { min-width: 0; }
+.collection-feature-detail h2 { margin-top: 13px; font-family: Manrope, system-ui, sans-serif; font-size: 17px; font-weight: 800; color: #17324d; overflow-wrap: anywhere; line-height: 1.4; }
+.collection-feature-set { margin-top: 4px; font-size: 10px; line-height: 1.6; color: #4d6975; overflow-wrap: anywhere; }
+.collection-feature-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.collection-feature-tags span { color: #345b61; border: 1px solid #c9dcd5; border-radius: 5px; background: #fff; padding: 2px 6px; font-size: 9px; }
+.collection-feature-value { padding-top: 11px; border-top: 1px solid #ccdcd5; margin-top: 12px; display: flex; flex-direction: column; gap: 3px; }
+.collection-feature-value strong { color: #17324d; font-size: 19px; line-height: 1.4; font-weight: 800; overflow-wrap: anywhere; }
+.collection-feature-value > span { color: #4d6975; font-size: 9px; line-height: 1.6; }
+.collection-device-note { display: flex; align-items: center; justify-content: center; gap: 5px; padding-top: 11px; color: #401223; font-size: 9px; line-height: 1.6; text-align: center; }
+@media (max-width: 1000px) {
+  .collection-hero { grid-template-columns: minmax(0, 1fr) 260px; gap: 25px; padding: 30px; }
+  .collection-passport { gap: 7px; }
+  .collection-passport > div { padding: 10px; }
+  .collection-passport dt { flex-wrap: wrap; font-size: 9px; }
+  .collection-display { padding: 12px; }
+  .collection-feature { padding: 12px; }
+}
+@media (max-width: 700px) {
+  .collection-hero { grid-template-columns: minmax(0, 1fr); gap: 28px; padding: 27px 23px; }
+  .collection-hero h1 { font-size: 30px; }
+  .collection-hero .hero-copy > p { max-width: none; }
+  .collection-hero .hero-note { font-size: 10px; }
+  .collection-passport { margin-top: 24px; }
+  .collection-passport dt svg { display: none; }
+  .collection-passport dd { font-size: 22px; }
+  .collection-passport > div:last-child dd { font-size: 18px; }
+  .collection-feature-body { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; gap: 12px; }
+  .collection-feature-media { padding: 7px; }
+  .collection-feature-media .card-image { width: 100%; max-width: 95px; }
+  .collection-feature-media .image-missing { padding: 5px; }
+  .collection-feature-media .image-missing span, .collection-feature-media .image-missing small { font-size: 8px; }
+  .collection-feature-media .image-missing svg { width: 20px; height: 20px; }
+  .collection-card-slot { min-height: 120px; gap: 14px; }
+  .collection-card-slot > .pokeball { width: 42px; }
+  .collection-card-slot > span:last-child { font-size: 6px; letter-spacing: 0; }
+  .collection-feature-detail h2 { font-size: 14px; margin-top: 0; }
+  .collection-feature-value strong { font-size: 16px; }
+  .collection-feature-value { margin-top: 8px; padding-top: 8px; }
+}
+@media (max-width: 380px) {
+  .header nav { display: grid; grid-template-columns: 1fr 1.35fr 1fr; gap: 4px; }
+  .header .nav-item { min-width: 0; width: 100%; gap: 5px; padding: 9px 5px; font-size: 11px; }
+  .header .nav-item svg { width: 15px; height: 15px; }
+  .header .nav-item.active::after { display: none; }
+  .header .count-badge { font-size: 9px; padding: 1px 4px; }
+}
