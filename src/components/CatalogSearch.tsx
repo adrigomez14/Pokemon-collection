@@ -50,19 +50,18 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
           {sets.data?.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.id} · {item.cardCount.total} cartas</option>)}
         </select></label>
         <label className="name-filter">Nombre<input aria-label="Nombre de carta" name="name" placeholder="Nombre de la carta (opcional)" value={draft.name} onChange={(e) => change('name', e.target.value)} maxLength={100} /></label>
+        <label>Número<input aria-label="Número de carta" name="number" placeholder="Ej. 025, 200" value={draft.number} onChange={(e) => change('number', e.target.value)} maxLength={50} pattern="[a-zA-Z0-9\-]+" title="Número o código exacto, conservando ceros iniciales; sin barras ni comodines." /></label>
         <button className="primary search-submit" type="submit"><SearchIcon size={16} />Buscar cartas</button>
       </div>
       <div className="search-checks"><label className="check-label"><input type="checkbox" checked={draft.exactName ?? false} onChange={(e) => change('exactName', e.target.checked)} />Nombre exacto</label><label className="check-label"><input type="checkbox" checked={draft.imageOnly ?? false} onChange={(e) => change('imageOnly', e.target.checked)} />Sólo con imagen</label></div>
       {draft.exactName && <p className="search-hint">El nombre exacto distingue mayúsculas y minúsculas según TCGdex.</p>}
       {draft.set === LATEST_SET && <p className="search-hint">Novedades: cartas de la expansión más reciente por fecha de lanzamiento en TCGdex para este idioma. Elige «Todas las expansiones» para buscar en todo el catálogo.</p>}
       <details className="advanced-filters" open={advanced} onToggle={(e) => setAdvanced(e.currentTarget.open)}>
-        <summary><SlidersHorizontal size={15} />Más opciones de filtro{(draft.rarity || draft.type || draft.number) && <span className="filter-dot" aria-label="Hay filtros avanzados seleccionados" />}</summary>
+        <summary><SlidersHorizontal size={15} />Más opciones de filtro{(draft.rarity || draft.type) && <span className="filter-dot" aria-label="Hay filtros avanzados seleccionados" />}</summary>
         {advanced && <div className="filter-options">
           <CatalogFilter language={language} field="rarities" label="Rareza" value={draft.rarity ?? ''} onChange={(value) => change('rarity', value)} />
           <CatalogFilter language={language} field="types" label="Tipo / elemento" value={draft.type ?? ''} onChange={(value) => change('type', value)} />
-          <label>Número de carta<input name="number" placeholder="Ej. 025, 200" value={draft.number} onChange={(e) => change('number', e.target.value)} maxLength={50} pattern="[a-zA-Z0-9\-]+" title="Número o código exacto, conservando ceros iniciales; sin barras ni comodines." /></label>
-          <label>ID de expansión (opcional)<input aria-label="Identificador de expansión" name="set" placeholder="Ej. sv03.5, base1" value={draft.set === LATEST_SET ? '' : draft.set} onChange={(e) => change('set', e.target.value)} maxLength={100} /></label>
-          <p className="search-hint">Los filtros se combinan. Usa el número impreso antes de la barra, conservando los ceros iniciales (025 no es 25). «Sólo con imagen» indica una imagen catalogada, no existencias a la venta.</p>
+          <p className="search-hint">Los filtros se combinan. «Sólo con imagen» indica una imagen catalogada, no existencias a la venta.</p>
         </div>}
       </details>
       <div className="search-bottom"><label>Ordenar por<select aria-label="Ordenar por" value={draft.sort ?? 'catalog'} onChange={(e) => apply({ ...draft, sort: e.target.value as Search['sort'] })}>{Object.entries(sortOptions).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><button type="button" className="text-button" onClick={() => apply({ name: '', set: '', number: '', page: 1 })}>Limpiar filtros</button></div>

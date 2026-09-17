@@ -41,7 +41,7 @@ Node portátil se descargó de nodejs.org y su archivo se comprobó contra el SH
 ## 2. Activar cuentas y guardado privado
 
 1. Crea un proyecto en [Supabase](https://supabase.com/dashboard). Elige una región cercana. La contraseña de PostgreSQL se introduce únicamente allí; la aplicación no la necesita.
-2. Abre **SQL Editor → New query**. En un proyecto nuevo ejecuta, una vez y en este orden, [supabase/migrations/001_collection.sql](supabase/migrations/001_collection.sql) y [supabase/migrations/002_cardmarket_links.sql](supabase/migrations/002_cardmarket_links.sql). Si ya tienes tu colección funcionando con la primera migración, ejecuta **solo la segunda**; no vuelvas a crear las tablas.
+2. Abre **SQL Editor → New query**. En un proyecto nuevo ejecuta, una vez y en este orden, [supabase/migrations/001_collection.sql](supabase/migrations/001_collection.sql), [supabase/migrations/002_cardmarket_links.sql](supabase/migrations/002_cardmarket_links.sql) y [supabase/migrations/003_feedback.sql](supabase/migrations/003_feedback.sql). Si ya tienes tu colección funcionando con migraciones anteriores, ejecuta **solo las que te falten**; no vuelvas a crear las tablas ya existentes.
 3. En el diálogo **Connect** del proyecto o en **Project Settings → API / API Keys**, copia la **Project URL** y la clave **publishable**. En proyectos antiguos sirve la clave pública **anon**.
 4. Abre [.env.local](.env.local), que ya existe con valores vacíos, y completa:
 
@@ -97,7 +97,8 @@ Comprobación del 16/09/2026: la API devolvió 154 expansiones en español, 218 
 - Selecciona **Todas las expansiones** o **Limpiar filtros** para salir de novedades y buscar en todo el catálogo. Las novedades reflejan la cobertura y las fechas del proveedor, que también puede incluir lanzamientos anunciados o series digitales.
 - Categoría distingue Pokémon, Entrenador y Energía; no son filtros de sobres o cajas. Las opciones de categoría, rareza y tipo se consultan al proveedor en el idioma elegido.
 - Nombre exacto distingue mayúsculas/minúsculas según TCGdex. Sin marcarlo se usa búsqueda parcial. Los filtros se combinan; si no hay coincidencias, prueba **Limpiar filtros**.
-- Más opciones de filtro contiene rareza, tipo, número e ID de expansión. El número es el código antes de la barra y conserva los ceros iniciales: `025` no es `25`. No admite barras ni comodines. Se busca el sufijo exacto del identificador porque el filtro estricto `localId` del proveedor no devuelve algunas cartas válidas.
+- El campo **Número** está en la fila principal, junto a Nombre. Es el código antes de la barra y conserva los ceros iniciales: `025` no es `25`. No admite barras ni comodines. Se busca el sufijo exacto del identificador porque el filtro estricto `localId` del proveedor no devuelve algunas cartas válidas.
+- Más opciones de filtro contiene rareza y tipo. Ya no incluye un campo manual de ID de expansión: para filtrar por expansión concreta usa el selector **Expansión** de la fila principal.
 - Cambiar la expansión limpia nombre/número, pero conserva los demás filtros. Cambiar el idioma reinicia los filtros, para no arrastrar términos de otro catálogo.
 - Ordenar por nombre o número se aplica en el servidor antes de paginar, no sólo a las cartas visibles. Cambiar la ordenación aplica también los filtros preparados y vuelve a la primera página.
 - **Sólo con imagen** indica imagen catalogada, no existencias en Cardmarket. No se incluyen «Sólo disponibles» ni «Más popular»: la fuente actual no proporciona esos datos.

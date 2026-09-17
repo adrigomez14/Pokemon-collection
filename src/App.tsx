@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { User } from '@supabase/supabase-js'
-import { ArrowDownToLine, ArrowUpFromLine, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Layers3, List, LogOut, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, TrendingUp, UserRound } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Layers3, List, LogOut, Mail, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, TrendingUp, UserRound } from 'lucide-react'
 import { AuthModal } from './components/AuthModal'
 import { CardImage } from './components/CardImage'
 import { CardModal, type Selection } from './components/CardModal'
 import { CatalogSearch } from './components/CatalogSearch'
+import { CollectionSummary } from './components/CollectionSummary'
+import { ContactPage } from './components/ContactPage'
 import { Modal } from './components/Modal'
 import { TrainerHero } from './components/TrainerHero'
 import { getCard, LATEST_SET, PAGE_SIZE, searchCards, type Search } from './lib/catalog'
@@ -22,7 +24,7 @@ function CollectionApp() {
   const [authLoading, setAuthLoading] = useState(Boolean(supabase))
   const [authOpen, setAuthOpen] = useState(false)
   const [recovery, setRecovery] = useState(false)
-  const [view, setView] = useState<'catalog' | 'collection'>('catalog')
+  const [view, setView] = useState<'catalog' | 'collection' | 'contact'>('catalog')
   const [language, setLanguage] = useState<Language>('es')
   const [search, setSearch] = useState<Search>({ name: '', set: LATEST_SET, number: '', page: 1 })
   const [catalogLayout, setCatalogLayout] = useState<'grid' | 'list'>('grid')
@@ -167,13 +169,17 @@ function CollectionApp() {
 
   return <>
     <a className="skip-link" href="#main">Ir al contenido</a>
-    <header className="header"><div className="header-inner"><a href="#main" className="brand" aria-label="Pokéfolio, inicio"><span className="brand-mark"><span className="pokeball" aria-hidden="true" /></span>pokéfolio<span className="brand-dot">.</span></a><nav aria-label="Navegación principal"><button className={view === 'catalog' ? 'nav-item active' : 'nav-item'} aria-current={view === 'catalog' ? 'page' : undefined} onClick={() => setView('catalog')}><SearchIcon size={17} />Explorar</button><button className={view === 'collection' ? 'nav-item active' : 'nav-item'} aria-current={view === 'collection' ? 'page' : undefined} onClick={() => setView('collection')}><BookOpen size={17} />Mi colección{user && <span className="count-badge">{stats.copies}</span>}</button></nav><div className="account">{user ? <><span className="account-email" title={user.email}>{user.email}</span><button className="icon-button" aria-label="Cerrar sesión" disabled={busy} onClick={() => void signOut()}><LogOut size={18} /></button></> : <button className="account-button" disabled={authLoading} onClick={openAuth}><UserRound size={17} /><span>{authLoading ? 'Conectando…' : 'Mi cuenta'}</span></button>}</div></div></header>
+    <header className="header"><div className="header-inner"><a href="#main" className="brand" aria-label="Pokéfolio, inicio"><span className="brand-mark"><span className="pokeball" aria-hidden="true" /></span>pokéfolio<span className="brand-dot">.</span></a><nav aria-label="Navegación principal"><button className={view === 'catalog' ? 'nav-item active' : 'nav-item'} aria-current={view === 'catalog' ? 'page' : undefined} onClick={() => setView('catalog')}><SearchIcon size={17} />Explorar</button><button className={view === 'collection' ? 'nav-item active' : 'nav-item'} aria-current={view === 'collection' ? 'page' : undefined} onClick={() => setView('collection')}><BookOpen size={17} />Mi colección{user && <span className="count-badge">{stats.copies}</span>}</button><button className={view === 'contact' ? 'nav-item active' : 'nav-item'} aria-current={view === 'contact' ? 'page' : undefined} onClick={() => setView('contact')}><Mail size={17} />Contacto</button></nav><div className="account">{user ? <><span className="account-email" title={user.email}>{user.email}</span><button className="icon-button" aria-label="Cerrar sesión" disabled={busy} onClick={() => void signOut()}><LogOut size={18} /></button></> : <button className="account-button" disabled={authLoading} onClick={openAuth}><UserRound size={17} /><span>{authLoading ? 'Conectando…' : 'Mi cuenta'}</span></button>}</div></div></header>
     <main id="main" className="main">
-      <TrainerHero onCollection={() => { setView('collection'); if (!user) openAuth() }} />
-      <section className="stats" aria-label="Resumen de tu colección"><div className="stat"><span className="stat-icon violet"><Layers3 size={21} /></span><div><span>Cartas en tu colección</span><strong>{user && !collection.isPending && !collection.isError ? stats.copies.toLocaleString('es-ES') : '—'} <small>ejemplares</small></strong></div></div><div className="stat"><span className="stat-icon green"><TrendingUp size={21} /></span><div><span>Valoración orientativa</span><strong>{user && !collection.isPending && !collection.isError ? euros(stats.total) : '—'}</strong><small>Referencias + valores manuales</small></div></div><div className="stat"><span className="stat-icon amber"><CircleHelp size={21} /></span><div><span>Sin valoración</span><strong>{user && !collection.isPending && !collection.isError ? stats.unpriced : '—'} <small>ejemplares</small></strong><small>{stats.manual} con valor manual</small></div></div></section>
-      {notice && <div className={`notice ${notice.error ? 'error' : 'success'}`} role={notice.error ? 'alert' : 'status'}><span>{notice.text}</span><button className="text-button" onClick={() => setNotice(null)} aria-label="Ocultar aviso">Cerrar</button></div>}
-      {!supabase && <div className="setup-banner"><ShieldCheck size={20} /><p><strong>Explora sin registrarte.</strong> Conecta Supabase para activar las cuentas y guardar tu colección en la nube.</p><button className="text-button" onClick={openAuth}>Cómo activarlo <ChevronRight size={15} /></button></div>}
-      <section className="catalog-section">
+      {view !== 'contact' && <>
+        {view === 'catalog'
+          ? <TrainerHero onCollection={() => { setView('collection'); if (!user) openAuth() }} />
+          : user && <CollectionSummary entries={entries} stats={stats} onExplore={() => setView('catalog')} />}
+        <section className="stats" aria-label="Resumen de tu colección"><div className="stat"><span className="stat-icon violet"><Layers3 size={21} /></span><div><span>Cartas en tu colección</span><strong>{user && !collection.isPending && !collection.isError ? stats.copies.toLocaleString('es-ES') : '—'} <small>ejemplares</small></strong></div></div><div className="stat"><span className="stat-icon green"><TrendingUp size={21} /></span><div><span>Valoración orientativa</span><strong>{user && !collection.isPending && !collection.isError ? euros(stats.total) : '—'}</strong><small>Referencias + valores manuales</small></div></div><div className="stat"><span className="stat-icon amber"><CircleHelp size={21} /></span><div><span>Sin valoración</span><strong>{user && !collection.isPending && !collection.isError ? stats.unpriced : '—'} <small>ejemplares</small></strong><small>{stats.manual} con valor manual</small></div></div></section>
+        {notice && <div className={`notice ${notice.error ? 'error' : 'success'}`} role={notice.error ? 'alert' : 'status'}><span>{notice.text}</span><button className="text-button" onClick={() => setNotice(null)} aria-label="Ocultar aviso">Cerrar</button></div>}
+        {!supabase && <div className="setup-banner"><ShieldCheck size={20} /><p><strong>Explora sin registrarte.</strong> Conecta Supabase para activar las cuentas y guardar tu colección en la nube.</p><button className="text-button" onClick={openAuth}>Cómo activarlo <ChevronRight size={15} /></button></div>}
+      </>}
+      {view === 'contact' ? <ContactPage defaultEmail={user?.email ?? ''} /> : <section className="catalog-section">
         <div className="section-heading"><div><p className="eyebrow">{view === 'catalog' ? 'EL PRÓXIMO DESCUBRIMIENTO' : 'TU ARCHIVO PERSONAL'}</p><h2>{view === 'catalog' ? 'Explora el catálogo' : 'Mi colección'}</h2></div>{view === 'catalog' ? <label className="language-label">Idioma de las cartas<select value={language} onChange={(e) => { setLanguage(e.target.value as Language); setSearch({ name: '', set: LATEST_SET, number: '', page: 1 }) }}>{Object.entries(languages).map(([key, text]) => <option value={key} key={key}>{text}</option>)}</select></label> : user && <div className="actions collection-actions">
           <button disabled={busy || !entries.length || collection.isPending || collection.isError} onClick={() => void refreshPrices()}><RefreshCw size={16} className={busy && !exportingExcel ? 'spin' : ''} />Actualizar precios</button>
           <button className="excel-button" aria-label="Exportar Excel" title="Descargar toda la colección, incluidos los registros ocultos por filtros" disabled={busy || !entries.length || collection.isPending || collection.isError} onClick={() => void exportExcel()}><FileSpreadsheet size={16} />{exportingExcel ? 'Preparando Excel…' : 'Exportar Excel'}</button>
@@ -194,7 +200,7 @@ function CollectionApp() {
           </article>)}</div>}
           <p className="valuation-note"><CircleHelp size={16} />La valoración excluye ejemplares sin precio. No incluye gastos de envío ni ajusta por idioma o conservación. Las referencias se guardan con la carta; usa «Actualizar precios» para renovarlas.</p>
         </>}
-      </section>
+      </section>}
       <footer><a className="brand footer-brand" href="#main">pokéfolio<span className="brand-dot">.</span></a><p>Hecho para coleccionar, no para dejar de hacerlo.<br /><small>Proyecto independiente, no afiliado a Pokémon, Nintendo, TCGdex ni Cardmarket. Imágenes y datos pertenecen a sus titulares.</small></p><a href="https://tcgdex.dev" target="_blank" rel="noopener noreferrer">Datos de TCGdex <ExternalLink size={13} /></a></footer>
     </main>
     {authOpen && <AuthModal onClose={closeAuth} recovery={recovery} />}
