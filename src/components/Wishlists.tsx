@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, Heart, LockKeyhole, Plus, Trash2 } from 'lucide-react'
+import { ExternalLink, Heart, LockKeyhole, Plus, Trash2, ArrowRight } from 'lucide-react'
 import { languages, type CardBrief, type Language } from '../lib/models'
 import {
   addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists, removeWishlistItem,
@@ -22,7 +22,6 @@ type Snapshot = {
   retry: () => Promise<boolean>
 }
 
-/** El puente conserva los hijos de App; solo el controlador privado cambia de clave. */
 function createScope(userId: string | null) {
   let snapshot: Snapshot = {
     userId, data: undefined, error: null, fetching: Boolean(userId), pending: false, canWrite: false,
@@ -52,7 +51,6 @@ function useWishlists() {
   return useSyncExternalStore(scope.subscribe, scope.getSnapshot, scope.getSnapshot)
 }
 
-/** Proveedor dentro de QueryClientProvider. No remonta children al iniciar/cerrar sesión. */
 export function WishlistProvider({ userId, children }: { userId: string | null; children: ReactNode }) {
   const scope = useMemo(() => createScope(userId), [userId])
   return <WishlistContext.Provider value={scope}>
@@ -73,7 +71,6 @@ function WishlistScope({ scope }: { scope: Scope }) {
     gcTime: 0,
     staleTime: 0,
     refetchOnMount: 'always',
-    // No heredar keepPreviousData ni datos iniciales de consultas públicas.
     placeholderData: undefined,
     initialData: undefined,
   })
@@ -89,7 +86,6 @@ function WishlistScope({ scope }: { scope: Scope }) {
     return () => {
       current.alive = false
       current.controller?.abort()
-      // Cancelar también la lectura de confirmación. gcTime:0 elimina la caché sin observadores.
       void queryClient.cancelQueries({ queryKey, exact: true }).catch(() => {})
     }
   }, [queryClient, queryKey])
@@ -101,7 +97,6 @@ function WishlistScope({ scope }: { scope: Scope }) {
     if (!userId || !current.alive || inFlight.current || state?.fetchStatus !== 'idle') return false
     if (write && (blockedError.current || state.status !== 'success' || state.error || !state.data)) return false
 
-    // El cierre síncrono evita dos peticiones incluso antes del siguiente render.
     inFlight.current = true
     const controller = new AbortController()
     current.controller = controller
@@ -137,8 +132,6 @@ function WishlistScope({ scope }: { scope: Scope }) {
   const error = writeError ?? (query.error ? wishlistErrorMessage(query.error) : null)
 
   useLayoutEffect(() => {
-    // La respuesta de una escritura nunca modifica corazones/checkboxes por sí sola.
-    // Tampoco publicamos una lectura intermedia mientras esperamos su confirmación.
     const data = pending ? scope.getSnapshot().data : query.data
     scope.publish({
       userId, data, error, fetching, pending, run, retry,
@@ -149,7 +142,6 @@ function WishlistScope({ scope }: { scope: Scope }) {
   return null
 }
 
-/** Estados únicamente en página/diálogo: nunca un aviso de error por cada carta. */
 function WishlistStatus() {
   const { data, error, fetching, pending, retry } = useWishlists()
   return <>
@@ -206,7 +198,6 @@ function WishlistNameForm({ initialName = '', label = 'Nueva lista privada', sub
 
 type HeartProps = { card: CardBrief; language: Language; onAuth: () => void }
 
-/** Colocar como hermano de card-tile, nunca dentro del botón que abre la carta. */
 export function WishlistHeart(props: HeartProps) {
   const { userId } = useWishlists()
   return <WishlistHeartScope key={JSON.stringify([userId, props.card.id, props.language])} {...props} />
@@ -256,7 +247,7 @@ function WishlistHeartScope({ card, language, onAuth }: HeartProps) {
   </>
 }
 
-type PageProps = { onAuth: () => void; onOpenCard: (card: CardBrief, language: Language) => void }
+type PageProps = { onAuth: () => void; onOpenCard: (card: CardBrief, language: Language) => void; onExploreCatalog?: () => void }
 type ListDialog = { kind: 'rename'; list: Wishlist } | { kind: 'delete'; list: Wishlist } | { kind: 'remove'; list: Wishlist; item: WishlistItem }
 
 export function WishlistPage(props: PageProps) {
@@ -264,18 +255,27 @@ export function WishlistPage(props: PageProps) {
   return <WishlistPageScope key={userId ?? 'anonymous'} {...props} />
 }
 
-function WishlistPageScope({ onAuth, onOpenCard }: PageProps) {
+function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) {
   const { userId, data, error, fetching, pending, canWrite, run, retry } = useWishlists()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<ListDialog | null>(null)
   const headingId = useId()
   const selected = data?.lists.find((list) => list.id === selectedId) ?? data?.lists[0]
   const items = selected ? data?.items.filter((item) => item.list_id === selected.id) : undefined
+
+  // Métricas para las tarjetas de resumen
+  const totalWishedItems = data?.items.length ?? 0
+  const totalLists = data?.lists.length ?? 0
+  
+  // Encontrar una carta destacada (la última añadida o la primera disponible) para el visor de la derecha
+  const featuredItem = data?.items[0]
+
   const counts = useMemo(() => {
     const result = new Map<string, number>()
     data?.items.forEach((item) => result.set(item.list_id, (result.get(item.list_id) ?? 0) + 1))
     return result
   }, [data?.items])
+
   const save = async (write: Write) => {
     const confirmed = await run(write)
     if (confirmed) setDialog(null)
@@ -283,11 +283,133 @@ function WishlistPageScope({ onAuth, onOpenCard }: PageProps) {
   }
 
   return <section className="wishlist-page" aria-labelledby={headingId}>
-    <header className="wishlist-heading">
-      <div><p className="wishlist-private"><LockKeyhole size={16} aria-hidden="true" />Tu espacio privado</p><h1 id={headingId}>Listas de deseos</h1>
-        <p>Organiza las cartas que buscas, sin modificar tu colección.</p></div>
-      <Heart className="wishlist-heading-icon" size={36} aria-hidden="true" />
-    </header>
+    
+    {/* Cabecera estilo Archivo de Entrenador */}
+    <div className="trainer-header-container" style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr auto',
+      gap: '24px',
+      alignItems: 'center',
+      marginBottom: '32px'
+    }}>
+      <header className="wishlist-heading" style={{ border: 'none', padding: 0, margin: 0 }}>
+        <div>
+          <p className="wishlist-private" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}></span>
+            TU ESPACIO PRIVADO
+          </p>
+          <h1 id={headingId} style={{ fontSize: '2.5rem', fontWeight: 800, margin: '8px 0 4px 0', lineHeight: 1.1 }}>
+            {totalWishedItems} {totalWishedItems === 1 ? 'carta guardada.' : 'cartas guardadas.'}
+            <span style={{ display: 'block', color: '#fbbf24', fontWeight: 700 }}>Tus próximas adquisiciones.</span>
+          </h1>
+          <p style={{ color: '#94a3b8', fontSize: '1rem', maxWidth: '540px', marginTop: '12px' }}>
+            Organiza las cartas que buscas, controla tus listas privadas y mantén el seguimiento sin alterar tu colección principal.
+          </p>
+        </div>
+
+        {/* Botón de acción principal estilo amarillo */}
+        <div style={{ marginTop: '24px' }}>
+          <button 
+            type="button" 
+            className="wishlist-button wishlist-button-primary" 
+            onClick={onExploreCatalog}
+            style={{
+              background: '#fbbf24',
+              color: '#0f172a',
+              fontWeight: 700,
+              padding: '12px 20px',
+              borderRadius: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            Explorar catálogo <ArrowRight size={18} />
+          </button>
+          <span style={{ display: 'block', color: '#64748b', fontSize: '0.85rem', marginTop: '8px' }}>
+            🔒 Tus listas son privadas y solo tuyas
+          </span>
+        </div>
+
+        {/* Tarjetas de estadísticas inferiores */}
+        {userId && data && (
+          <div style={{ display: 'flex', gap: '16px', marginTop: '24px', flexWrap: 'wrap' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 20px', minWidth: '140px' }}>
+              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '4px' }}>Listas creadas</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc' }}>{totalLists}</span>
+            </div>
+            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '16px 20px', minWidth: '140px' }}>
+              <span style={{ display: 'block', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '4px' }}>Idiomas distintos</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc' }}>
+                {new Set(data.items.map(i => i.language)).size}
+              </span>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Tarjeta / Pokédex lateral derecha con carta destacada */}
+      {featuredItem && (
+        <div className="pokefolio-card-preview" style={{
+          background: '#dc2626',
+          borderRadius: '16px',
+          padding: '16px',
+          width: '280px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+          color: '#0f172a',
+          position: 'relative'
+        }}>
+          {/* Detalles decorativos superiores tipo Pokédex */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#60a5fa', border: '2px solid white' }}></div>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f87171' }}></div>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#facc15' }}></div>
+            <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 800, color: 'white', letterSpacing: '0.05em' }}>WISHLIST / TCG</span>
+          </div>
+
+          {/* Contenedor interior blanco */}
+          <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '12px' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Heart size={12} fill="currentColor" color="#dc2626" /> Carta destacada en deseos
+            </div>
+            
+            <div style={{ background: '#e2e8f0', borderRadius: '8px', padding: '8px', textAlign: 'center', marginBottom: '10px' }}>
+              <div style={{ maxHeight: '160px', overflow: 'hidden', display: 'flex', justifyContent: 'center' }}>
+                <CardImage card={featuredItem.card_snapshot} />
+              </div>
+            </div>
+
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a', marginBottom: '2px' }}>
+              {featuredItem.card_snapshot.name}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '12px' }}>
+              N.º {featuredItem.card_snapshot.localId} · {languages[featuredItem.language]}
+            </div>
+
+            <button 
+              type="button" 
+              onClick={() => onOpenCard(featuredItem.card_snapshot, featuredItem.language)}
+              style={{
+                width: '100%',
+                background: '#0f172a',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Ver detalles de la carta
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+
     {!userId ? <div className="wishlist-empty">
       <h2>Tus próximas cartas, en un solo lugar</h2><p>Inicia sesión para crear varias listas privadas y guardar cartas por idioma.</p>
       <button type="button" className="wishlist-button wishlist-button-primary" onClick={onAuth}>Iniciar sesión</button>
