@@ -45,12 +45,12 @@ async function request(path: string, signal?: AbortSignal) {
   return response.json() as Promise<unknown>
 }
 
-export async function searchCards(language: Language, search: Search, signal?: AbortSignal, ownedIds?: ReadonlySet<string>) {
+export async function searchCards(language: Language, search: Search, signal?: AbortSignal, ownedIds?: ReadonlySet<string>, pageSize = PAGE_SIZE) {
   const sort = catalogSort(search)
   const byOwnership = search.ownership === 'missing' || search.ownership === 'owned'
   if (byOwnership && (!search.set.trim() || !ownedIds)) throw new Error('Selecciona una expansión e inicia sesión para consultar las cartas que tienes o te faltan.')
   if (sort === 'rarity-desc' && !search.set.trim()) throw new Error('Selecciona una expansión para ordenar por rareza.')
-  const params = new URLSearchParams({ 'pagination:page': String(search.page), 'pagination:itemsPerPage': String(PAGE_SIZE) })
+  const params = new URLSearchParams({ 'pagination:page': String(search.page), 'pagination:itemsPerPage': String(pageSize) })
   if (search.name.trim()) params.set('name', `${search.exactName ? 'eq:' : 'like:'}${search.name.trim()}`)
   if (search.set.trim() && search.set !== LATEST_SET) params.set('set.id', `eq:${search.set.trim()}`)
   if (search.number.trim()) {
@@ -103,7 +103,7 @@ export async function searchCards(language: Language, search: Search, signal?: A
       cards.sort((a, b) => (ranks.get(b.id) ?? 25) - (ranks.get(a.id) ?? 25)
         || compare(b.localId, a.localId) || compare(a.id, b.id))
     }
-    return cards.slice((search.page - 1) * PAGE_SIZE, search.page * PAGE_SIZE)
+    return cards.slice((search.page - 1) * pageSize, search.page * pageSize)
   }
   return z.array(briefSchema).parse(await request(`${language}/cards?${params}`, signal))
 }

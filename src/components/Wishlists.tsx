@@ -434,7 +434,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
               {selected && <section className="wishlist-content" aria-label={`Lista ${selected.name}`}>
                 <div className="wishlist-list-heading"><div><h2>{selected.name}</h2><p>{items?.length} cartas · Lista privada</p></div>
                   <div className="wishlist-actions">
-                    <button type="button" className="wishlist-button" disabled={!items?.length} onClick={() => exportWishlist(selected.name, items ?? [])}><Download size={15} />Exportar compra</button>
+                    <button type="button" className="wishlist-button" disabled={!items?.length} onClick={() => exportWishlist(selected.name, items ?? [])}><Download size={15} />Exportar lista de compra</button>
                     <button type="button" className="wishlist-button" disabled={!canWrite} onClick={() => setDialog({ kind: 'rename', list: selected })}>Renombrar</button>
                     <button type="button" className="wishlist-button wishlist-button-danger" disabled={!canWrite} onClick={() => setDialog({ kind: 'delete', list: selected })}>Eliminar lista</button>
                   </div>

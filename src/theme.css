@@ -94,6 +94,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .nav-item.active { color: #ad2438; background: #fcebed; }
 .nav-item.active::after { content: ''; width: 5px; height: 5px; background: #c62d43; border-radius: 50%; }
 .account-button { color: #17324d; border-color: #b9c9d6; }
+.account-preference-check { flex-direction: row; align-items: center; gap: 8px; }
+.account-preference-check input { width: 17px; height: 17px; margin: 0; accent-color: #bd263c; }
 .notification-control { position: relative; }
 .notification-toggle { position: relative; color: #526779; }
 .notification-count { position: absolute; top: 1px; right: 1px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: #bd263c; color: #fff; font-size: 9px; line-height: 15px; text-align: center; }
@@ -334,6 +336,7 @@ footer small, footer > a:last-child { color: #5c7283; }
 [data-theme="dark"] .notification-toggle { color: #b8d2df; }
 [data-theme="dark"] .notification-popover { background: #142532; border-color: #3b5667; color: #edf5fa; box-shadow: 0 12px 30px #0008; }
 [data-theme="dark"] .notification-popover p { color: #a9c0cb; }
+[data-theme="dark"] .account-preference-check { color: #dce9ef; }
 [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea { background: #142532; border-color: #3b5667; color: #e4edf4; }
 [data-theme="dark"] input::placeholder, [data-theme="dark"] textarea::placeholder { color: #8299a8; }
 [data-theme="dark"] label, [data-theme="dark"] .language-label, [data-theme="dark"] .catalog-meta, [data-theme="dark"] .search-hint { color: #a8bbc7; }

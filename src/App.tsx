@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import type { User } from '@supabase/supabase-js'
 import { ArrowDownToLine, ArrowUpFromLine, Bell, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Heart, Layers3, List, LogOut, Mail, Moon, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, Sun, TrendingUp, UserRound } from 'lucide-react'
 import { AuthModal } from './components/AuthModal'
-import { AccountModal } from './components/AccountModal'
+import { AccountModal, type AccountPreferences } from './components/AccountModal'
 import { PrivacyPage } from './components/PrivacyPage'
 import { CardImage } from './components/CardImage'
 import { CardModal, type Selection } from './components/CardModal'
@@ -15,7 +15,7 @@ import { SetProgress } from './components/SetProgress'
 import { Modal } from './components/Modal'
 import { TrainerHero } from './components/TrainerHero'
 import { WishlistHeart, WishlistPage, WishlistProvider } from './components/Wishlists'
-import { getCard, LATEST_SET, PAGE_SIZE, searchCards, type Search } from './lib/catalog'
+import { getCard, LATEST_SET, searchCards, type Search } from './lib/catalog'
 import { addEntry, importEntries, loadCollection, removeEntry, updateEntry, updateSnapshot } from './lib/collection'
 import { loadWishlistPriceAlerts, markWishlistPriceAlertsRead, type WishlistPriceAlert } from './lib/wishlists'
 import { cardmarketUrl, collectionStats, createBackupParts, entryValue, euros, formatDate, languages, marketQuote, parseBackup, variants, type Entry, type EntryInput, type Language } from './lib/models'
@@ -34,9 +34,16 @@ function CollectionApp() {
   const [recovery, setRecovery] = useState(false)
   const [view, setView] = usePageNavigation()
   const [accountOpen, setAccountOpen] = useState(false)
-  const [language, setLanguage] = useState<Language>('es')
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('pokefolio-language') : null
+    return saved === 'en' || saved === 'ja' ? saved : 'es'
+  })
   const [search, setSearch] = useState<Search>({ name: '', set: LATEST_SET, number: '', page: 1 })
-  const [catalogLayout, setCatalogLayout] = useState<'grid' | 'list'>('grid')
+  const [catalogLayout, setCatalogLayout] = useState<'grid' | 'list'>(() => typeof window !== 'undefined' && localStorage.getItem('pokefolio-layout') === 'list' ? 'list' : 'grid')
+  const [pageSize, setPageSize] = useState<12 | 24 | 48>(() => {
+    const saved = Number(typeof window !== 'undefined' ? localStorage.getItem('pokefolio-page-size') : '')
+    return saved === 12 || saved === 48 ? saved : 24
+  })
   const [selection, setSelection] = useState<Selection | null>(null)
   const [collectionSearch, setCollectionSearch] = useState('')
   const [collectionLanguage, setCollectionLanguage] = useState('all')
@@ -61,6 +68,12 @@ function CollectionApp() {
   function applyAccountTheme(nextUser: User | null) {
     const savedTheme = nextUser?.user_metadata?.theme
     if (savedTheme === 'dark' || savedTheme === 'light') setDarkMode(savedTheme === 'dark')
+    const savedLanguage = nextUser?.user_metadata?.language
+    if (savedLanguage === 'es' || savedLanguage === 'en' || savedLanguage === 'ja') setLanguage(savedLanguage)
+    const savedLayout = nextUser?.user_metadata?.catalog_layout
+    if (savedLayout === 'grid' || savedLayout === 'list') setCatalogLayout(savedLayout)
+    const savedPageSize = Number(nextUser?.user_metadata?.page_size)
+    if (savedPageSize === 12 || savedPageSize === 24 || savedPageSize === 48) setPageSize(savedPageSize)
   }
 
   async function toggleDarkMode() {
@@ -69,6 +82,26 @@ function CollectionApp() {
     if (!user || !supabase) return
     const { error } = await supabase.auth.updateUser({ data: { theme: nextDarkMode ? 'dark' : 'light' } })
     if (error) setNotice({ text: 'El tema se ha aplicado, pero no se pudo guardar en tu cuenta.', error: true })
+  }
+
+  function updateLocalPreference(key: string, value: string) {
+    localStorage.setItem(key, value)
+  }
+
+  async function updateAccountPreferences(patch: Partial<AccountPreferences>) {
+    if (patch.language) { setLanguage(patch.language); setSearch({ name: '', set: LATEST_SET, number: '', page: 1 }); updateLocalPreference('pokefolio-language', patch.language) }
+    if (patch.catalogLayout) { setCatalogLayout(patch.catalogLayout); updateLocalPreference('pokefolio-layout', patch.catalogLayout) }
+    if (patch.pageSize) { setPageSize(patch.pageSize); setSearch((previous) => ({ ...previous, page: 1 })); updateLocalPreference('pokefolio-page-size', String(patch.pageSize)) }
+    if (patch.darkMode !== undefined) setDarkMode(patch.darkMode)
+    if (user && supabase) {
+      const data: Record<string, string | number> = {}
+      if (patch.language) data.language = patch.language
+      if (patch.catalogLayout) data.catalog_layout = patch.catalogLayout
+      if (patch.pageSize) data.page_size = patch.pageSize
+      if (patch.darkMode !== undefined) data.theme = patch.darkMode ? 'dark' : 'light'
+      const { error } = await supabase.auth.updateUser({ data })
+      if (error) setNotice({ text: 'La preferencia se aplicó, pero no se pudo guardar en tu cuenta.', error: true })
+    }
   }
 
   useEffect(() => {
@@ -120,7 +153,7 @@ function CollectionApp() {
   const entries = user ? collection.data ?? [] : []
   const owned = ownedCardIds(entries, language)
   const byOwnership = search.ownership === 'missing' || search.ownership === 'owned'
-  const catalog = useQuery({ queryKey: ['catalog', language, search, byOwnership ? { user: user?.id, owned: [...owned].sort() } : null], queryFn: ({ signal }) => searchCards(language, search, signal, byOwnership ? owned : undefined), enabled: view === 'catalog' && (!byOwnership || Boolean(user && collection.isSuccess)), refetchInterval: view === 'catalog' ? 5 * 60 * 1000 : false })
+  const catalog = useQuery({ queryKey: ['catalog', language, pageSize, search, byOwnership ? { user: user?.id, owned: [...owned].sort() } : null], queryFn: ({ signal }) => searchCards(language, search, signal, byOwnership ? owned : undefined, pageSize), enabled: view === 'catalog' && (!byOwnership || Boolean(user && collection.isSuccess)), refetchInterval: view === 'catalog' ? 5 * 60 * 1000 : false })
   const collectionSets = [...new Map(entries.map((entry) => [entry.card_snapshot.set.id, entry.card_snapshot.set.name])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'es'))
   const stats = collectionStats(entries)
   const visibleEntries = entries.filter((entry) => (collectionLanguage === 'all' || entry.language === collectionLanguage) && (!collectionSet || entry.card_snapshot.set.id === collectionSet) && `${entry.card_snapshot.name} ${entry.card_snapshot.set.name} ${entry.card_id} ${entry.notes}`.toLocaleLowerCase().includes(collectionSearch.toLocaleLowerCase())).sort((a, b) => sort === 'value' ? (entryValue(b) ?? -1) - (entryValue(a) ?? -1) : sort === 'name' ? a.card_snapshot.name.localeCompare(b.card_snapshot.name) : b.updated_at.localeCompare(a.updated_at))
@@ -302,7 +335,7 @@ function CollectionApp() {
           </>
         ) : (
           <section className="catalog-section">
-            <div className="section-heading"><div><p className="eyebrow">{view === 'catalog' ? 'EL PRÓXIMO DESCUBRIMIENTO' : 'TU ARCHIVO PERSONAL'}</p><h2>{view === 'catalog' ? 'Explora el catálogo' : 'Mi colección'}</h2></div>{view === 'catalog' ? <label className="language-label">Idioma de las cartas<select value={language} onChange={(e) => { setLanguage(e.target.value as Language); setSearch({ name: '', set: LATEST_SET, number: '', page: 1 }) }}>{Object.entries(languages).map(([key, text]) => <option value={key} key={key}>{text}</option>)}</select></label> : user && <div className="actions collection-actions">
+            <div className="section-heading"><div><p className="eyebrow">{view === 'catalog' ? 'EL PRÓXIMO DESCUBRIMIENTO' : 'TU ARCHIVO PERSONAL'}</p><h2>{view === 'catalog' ? 'Explora el catálogo' : 'Mi colección'}</h2></div>{view === 'catalog' ? <label className="language-label">Idioma de las cartas<select value={language} onChange={(e) => { const next = e.target.value as Language; setLanguage(next); updateLocalPreference('pokefolio-language', next); setSearch({ name: '', set: LATEST_SET, number: '', page: 1 }) }}>{Object.entries(languages).map(([key, text]) => <option value={key} key={key}>{text}</option>)}</select></label> : user && <div className="actions collection-actions">
               <button disabled={busy || !entries.length || collection.isPending || collection.isError} onClick={() => void refreshPrices()}><RefreshCw size={16} className={busy && !exportingExcel ? 'spin' : ''} />Actualizar precios</button>
               <button className="excel-button" aria-label="Exportar Excel" title="Descargar toda la colección, incluidos los registros ocultos por filtros" disabled={busy || !entries.length || collection.isPending || collection.isError} onClick={() => void exportExcel()}><FileSpreadsheet size={16} />{exportingExcel ? 'Preparando Excel…' : 'Exportar Excel'}</button>
               <button disabled={busy || !entries.length || collection.isPending || collection.isError} onClick={exportCollection}><ArrowDownToLine size={16} />Exportar JSON</button>
@@ -314,7 +347,7 @@ function CollectionApp() {
               {user && collection.isError && <div className="notice error" role="alert"><span>No se pudo cargar tu colección. No podemos determinar qué cartas tienes o te faltan.</span><button onClick={() => void collection.refetch()}>Reintentar colección</button><button onClick={() => setSearch((previous) => ({ ...previous, ownership: 'all', page: 1 }))}>Ver todas las cartas</button></div>}
               <div className="catalog-meta"><span>{catalog.isFetching ? 'Buscando cartas…' : `Página ${search.page} · ${catalog.data?.length ?? 0} cartas en esta página`}</span><div className="view-switch" role="group" aria-label="Presentación del catálogo"><button aria-label="Ver lista" aria-pressed={catalogLayout === 'list'} onClick={() => setCatalogLayout('list')}><List size={16} /><span>Lista</span></button><button aria-label="Ver cuadrícula" aria-pressed={catalogLayout === 'grid'} onClick={() => setCatalogLayout('grid')}><Grid2X2 size={16} /><span>Cuadrícula</span></button></div></div>
               {byOwnership && collection.isError ? null : catalog.isPending ? <div className="cards-grid" aria-label="Cargando catálogo" role="status">{Array.from({ length: 8 }, (_, i) => <div className="skeleton" key={i} />)}</div> : catalog.isError ? <div className="empty-state"><CircleHelp /><h3>No se pudo cargar el catálogo</h3><p>{catalog.error.message}</p><button onClick={() => void catalog.refetch()}>Reintentar</button></div> : !catalog.data?.length ? <div className="empty-state"><SearchIcon /><h3>No encontramos esas cartas</h3><p>Revisa el idioma, la escritura del nombre exacto y los filtros combinados. Usa «Limpiar filtros» para empezar de nuevo.</p></div> : <div className={catalogLayout === 'list' ? 'cards-list' : 'cards-grid'} aria-label="Resultados del catálogo">{catalog.data.map((card) => { const owned = entries.filter((e) => e.card_id === card.id && e.language === language).reduce((n, e) => n + e.quantity, 0); return <div className="catalog-card" key={card.id}><button className="card-tile" onClick={() => setSelection({ card, language })}><div className="card-art">{owned > 0 && <span className="owned-badge">En tu colección · {owned}</span>}<CardImage card={card} /></div><div className="card-info"><span className="card-code">{card.id} · {language.toUpperCase()}</span><h3>{card.name}</h3><div className="card-tile-footer"><span>Ver carta y precio</span><span className="add-circle"><Plus size={17} /></span></div></div></button><WishlistHeart card={card} language={language} onAuth={openAuth} /></div> })}</div>}
-              <div className="pagination"><button disabled={search.page === 1 || catalog.isFetching} onClick={() => setSearch((s) => ({ ...s, page: s.page - 1 }))}><ChevronLeft size={17} />Anterior</button><span>Página {search.page}</span><button disabled={catalog.isFetching || catalog.isError || (catalog.data?.length ?? 0) < PAGE_SIZE} onClick={() => setSearch((s) => ({ ...s, page: s.page + 1 }))}>Siguiente<ChevronRight size={17} /></button></div>
+              <div className="pagination"><button disabled={search.page === 1 || catalog.isFetching} onClick={() => setSearch((s) => ({ ...s, page: s.page - 1 }))}><ChevronLeft size={17} />Anterior</button><span>Página {search.page}</span><button disabled={catalog.isFetching || catalog.isError || (catalog.data?.length ?? 0) < pageSize} onClick={() => setSearch((s) => ({ ...s, page: s.page + 1 }))}>Siguiente<ChevronRight size={17} /></button></div>
             </> : !user ? <div className="empty-state collection-empty"><BookOpen size={40} /><h3>Tu colección empieza con una carta</h3><p>Inicia sesión para añadir cartas, guardar sus detalles y consultarlas desde cualquier dispositivo.</p><button className="primary" disabled={authLoading} onClick={openAuth}>Acceder a mi colección</button></div> : collection.isPending ? <div className="empty-state" role="status">Cargando tu colección…</div> : collection.isError ? <div className="empty-state" role="alert"><h3>No se pudo cargar tu colección</h3><p>{collection.error.message}</p><button onClick={() => void collection.refetch()}>Reintentar</button></div> : <>
               <div className="collection-filters"><label>Buscar en mi colección<input value={collectionSearch} onChange={(e) => setCollectionSearch(e.target.value)} placeholder="Nombre, expansión o notas…" /></label><label>Idioma<select aria-label="Idioma de mi colección" value={collectionLanguage} onChange={(e) => setCollectionLanguage(e.target.value)}><option value="all">Todos los idiomas</option>{Object.entries(languages).map(([key, text]) => <option value={key} key={key}>{text}</option>)}</select></label><label>Expansión<select aria-label="Expansión de mi colección" value={collectionSet} onChange={(e) => setCollectionSet(e.target.value)}><option value="">Todas mis expansiones</option>{collectionSets.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label><label>Mostrar<select aria-label="Mostrar en mi colección" value={collectionShow} onChange={(e) => setCollectionShow(e.target.value as 'all' | 'duplicates')}><option value="all">Todas mis cartas</option><option value="duplicates">Repetidas</option></select></label><label>Ordenar<select value={sort} onChange={(e) => setSort(e.target.value)}><option value="recent">Última modificación</option><option value="name">Nombre</option><option value="value">Mayor valor por carta</option></select></label></div>
               {collectionSet && collectionLanguage !== 'all' ? <SetProgress language={collectionLanguage as Language} search={{ name: '', set: collectionSet, number: '', page: 1 }} entries={entries} signedIn ready={collection.isSuccess} onFilter={(ownership) => { setLanguage(collectionLanguage as Language); setSearch({ name: '', set: collectionSet, number: '', page: 1, ownership }); setView('catalog') }} onAuth={openAuth} /> : <p className="search-hint">Selecciona una expansión y un idioma para ver su progreso y consultar las cartas que te faltan.</p>}
@@ -338,7 +371,7 @@ function CollectionApp() {
         </footer>
       </main>
       {authOpen && <AuthModal onClose={closeAuth} recovery={recovery} />}
-      {accountOpen && user && <AccountModal user={user} canExport={collection.isSuccess && entries.length > 0} onClose={() => setAccountOpen(false)} onDeleted={() => accountDeleted(user.id)} onExport={() => { if (collection.isSuccess && entries.length) { setAccountOpen(false); exportCollection() } }} />}
+      {accountOpen && user && <AccountModal user={user} canExport={collection.isSuccess && entries.length > 0} preferences={{ language, catalogLayout, pageSize, darkMode }} onPreferencesChange={(patch) => { void updateAccountPreferences(patch) }} onClose={() => setAccountOpen(false)} onDeleted={() => accountDeleted(user.id)} onExport={() => { if (collection.isSuccess && entries.length) { setAccountOpen(false); exportCollection() } }} />}
       {exportParts && <Modal title="Exportar colección por partes" onClose={() => setExportParts(null)}><div className="stack"><p>Tu colección se divide en {exportParts.length} copias para que todas puedan importarse. Descarga y conserva cada parte.</p>{exportParts.map((part, index) => <button key={index} onClick={() => downloadBackup(part, index + 1)}><ArrowDownToLine size={16} />Descargar parte {index + 1}</button>)}</div></Modal>}
       {selection && <CardModal key={`${selection.language}:${selection.card.id}:${selection.entry?.id ?? ''}`} selection={selection} signedIn={Boolean(user)} onClose={() => setSelection(null)} onAuth={openAuth} onSave={save} onDelete={deleteEntry} />}
       {backup && <Modal title="Importar copia de tu colección" onClose={() => setBackup(null)} busy={busy}><div className="stack"><p>Se importarán <strong>{backup.length} registros</strong> en tu cuenta.</p><p>Si ya existe la misma carta, idioma, variante y conservación, se reemplazarán su cantidad, notas y valor manual por los de la copia. No se borrarán las demás cartas.</p><p className="muted">Exporta primero tu colección si quieres conservar una copia del estado actual.</p><button className="primary" disabled={busy || !backup.length} onClick={() => void confirmImport()}>{busy ? 'Importando…' : 'Confirmar importación'}</button></div></Modal>}

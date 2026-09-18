@@ -3,6 +3,13 @@ import type { User } from '@supabase/supabase-js'
 import { deleteOwnAccount, updateOwnPassword } from '../lib/account'
 import { Modal } from './Modal'
 
+export type AccountPreferences = {
+  language: 'es' | 'en' | 'ja'
+  catalogLayout: 'grid' | 'list'
+  pageSize: 12 | 24 | 48
+  darkMode: boolean
+}
+
 export type AccountModalProps = {
   user: User
   canExport: boolean
@@ -11,6 +18,8 @@ export type AccountModalProps = {
   onDeleted: () => void
   /** Exportar solo la colección actual como JSON, sin listas de deseos ni todos los datos personales. */
   onExport: () => void
+  preferences: AccountPreferences
+  onPreferencesChange: (preferences: Partial<AccountPreferences>) => void
 }
 
 /** El cambio de identidad remonta el formulario y descarta las contraseñas anteriores. */
@@ -18,7 +27,7 @@ export function AccountModal(props: AccountModalProps) {
   return <AccountForm key={`${props.user.id}:${props.user.email ?? ''}`} {...props} />
 }
 
-function AccountForm({ user, canExport, onClose, onDeleted, onExport }: AccountModalProps) {
+function AccountForm({ user, canExport, onClose, onDeleted, onExport, preferences, onPreferencesChange }: AccountModalProps) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [deletePassword, setDeletePassword] = useState('')
@@ -68,6 +77,20 @@ function AccountForm({ user, canExport, onClose, onDeleted, onExport }: AccountM
   return <Modal title="Gestionar cuenta" onClose={onClose} busy={busy}>
     <div className="account-settings stack" aria-busy={busy}>
       <p>Correo de la cuenta: <strong>{user.email ?? 'No disponible'}</strong></p>
+      <section className="stack" aria-labelledby="account-preferences-heading">
+        <h3 id="account-preferences-heading">Preferencias</h3>
+        <label>Idioma preferido<select value={preferences.language} onChange={(event) => onPreferencesChange({ language: event.target.value as AccountPreferences['language'] })}>
+          <option value="es">Español</option><option value="en">Inglés</option><option value="ja">Japonés</option>
+        </select></label>
+        <label>Vista del catálogo<select value={preferences.catalogLayout} onChange={(event) => onPreferencesChange({ catalogLayout: event.target.value as AccountPreferences['catalogLayout'] })}>
+          <option value="grid">Cuadrícula</option><option value="list">Lista</option>
+        </select></label>
+        <label>Cartas por página<select value={preferences.pageSize} onChange={(event) => onPreferencesChange({ pageSize: Number(event.target.value) as AccountPreferences['pageSize'] })}>
+          <option value="12">12 cartas</option><option value="24">24 cartas</option><option value="48">48 cartas</option>
+        </select></label>
+        <label className="account-preference-check"><input type="checkbox" checked={preferences.darkMode} onChange={(event) => onPreferencesChange({ darkMode: event.target.checked })} /> Activar modo nocturno</label>
+        <p className="muted">Estas preferencias se guardan en tu cuenta y se aplican al volver a iniciar sesión.</p>
+      </section>
       <section className="stack" aria-labelledby="account-export-heading">
         <h3 id="account-export-heading">Copia de tu colección</h3>
         <p>Descarga tu colección antes de eliminar la cuenta. La copia JSON incluye únicamente la colección, no las listas de deseos ni sus cartas, los mensajes de contacto ni todos los datos de cuenta.</p>
