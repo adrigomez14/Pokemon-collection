@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Search as SearchIcon, SlidersHorizontal } from 'lucide-react'
 import { catalogSort, clearRarityCache, getFilterValues, getSets, LATEST_SET, sortOptions, type FilterField, type Search } from '../lib/catalog'
 import type { Language } from '../lib/models'
+import { RecentSets } from './RecentSets'
 
 export function CatalogSearch({ language, search, onSearch }: { language: Language; search: Search; onSearch: (search: Search) => void }) {
   const client = useQueryClient()
@@ -38,6 +39,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
         client.invalidateQueries({ queryKey: ['catalog', language] }),
         client.invalidateQueries({ queryKey: ['catalog-filters', language] }),
         client.invalidateQueries({ queryKey: ['set-catalog', language] }),
+        client.invalidateQueries({ queryKey: ['recent-sets', language] }),
       ])
     } finally { setRefreshing(false) }
   }
@@ -72,6 +74,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
       {catalogSort(draft) === 'rarity-desc' && <p className="search-hint">Rarezas especiales primero y comunes al final. Dentro de cada nivel, número descendente. Las categorías sin equivalencia se agrupan aparte; este orden no indica el precio.</p>}
       {sets.isError && <p className="search-hint" role="alert">No se pudo actualizar la lista de expansiones. Pulsa «Refrescar» para reintentar.</p>}
     </form>
+    <RecentSets language={language} selectedSet={search.set} onSelect={(set) => apply({ name: '', set, number: '', page: 1, ownership: 'all', sort: set ? 'rarity-desc' : 'catalog' })} />
   </>
 }
 

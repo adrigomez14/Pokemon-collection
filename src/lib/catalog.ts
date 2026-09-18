@@ -163,6 +163,31 @@ export async function getSets(language: Language, signal?: AbortSignal) {
   return sets.sort((a, b) => a.name.localeCompare(b.name, language, { numeric: true }))
 }
 
+const recentSetSchema = setSchema.extend({
+  logo: z.string().nullish().catch(undefined),
+  serie: z.object({ id: z.string() }).nullish().catch(undefined),
+})
+export type RecentSet = z.infer<typeof recentSetSchema>
+export const RECENT_SET_LIMIT = 8
+
+/** Orden de lanzamiento del proveedor, sin confundirlo con el orden alfabético del selector. */
+export async function getRecentSets(language: Language, signal?: AbortSignal): Promise<RecentSet[]> {
+  const params = new URLSearchParams({ ...PHYSICAL_SETS, 'sort:field': 'releaseDate', 'sort:order': 'DESC' })
+  const sets = z.array(recentSetSchema).parse(await request(`${language}/sets?${params}`, signal))
+  const seen = new Set<string>()
+  return sets.filter((set) => {
+    if (set.serie?.id === 'tcgp' || set.cardCount.total === 0 || seen.has(set.id)) return false
+    seen.add(set.id)
+    return true
+  }).slice(0, RECENT_SET_LIMIT)
+}
+
+/** Los logos usan .webp directamente: no llevan /low como las imágenes de cartas. */
+export function setLogoUrl(logo?: string | null): string | undefined {
+  if (!logo || logo.length > 2048 || logo !== logo.trim() || !/^https:\/\/assets\.tcgdex\.net\/(?:[A-Za-z0-9_-][A-Za-z0-9_.-]*\/)+logo$/.test(logo)) return undefined
+  return `${logo}.webp`
+}
+
 /** Vocabularios localizados: no enviar términos españoles al catálogo japonés. */
 export async function getFilterValues(language: Language, field: FilterField, signal?: AbortSignal) {
   return z.array(z.string().min(1)).parse(await request(`${language}/${field}`, signal))

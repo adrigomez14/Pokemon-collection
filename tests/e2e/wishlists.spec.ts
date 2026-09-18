@@ -234,7 +234,13 @@ test('el catálogo compacto tiene dos columnas, controles táctiles y filtros qu
     if (width < 700) {
       await expect(page.getByLabel('Número de carta', { exact: true })).toBeHidden()
       const positions = await page.locator('.catalog-card').evaluateAll((cards) => cards.map((card) => ({ x: card.getBoundingClientRect().x, y: card.getBoundingClientRect().top + scrollY })))
-      expect(positions[0].y).toBeLessThan(1000)
+      const recentHeight = await page.locator('.recent-sets').evaluate((element) => {
+        const style = getComputedStyle(element)
+        return element.getBoundingClientRect().height + parseFloat(style.marginTop) + parseFloat(style.marginBottom)
+      })
+      // La fila solicitada añade altura; el resto del catálogo conserva su presupuesto compacto.
+      expect(recentHeight).toBeLessThan(280)
+      expect(positions[0].y - recentHeight).toBeLessThan(1000)
       expect(positions[0].y).toBe(positions[1].y)
       expect(positions[0].x).toBeLessThan(positions[1].x)
       await page.screenshot({ path: testInfo.outputPath(`catalogo-${width}.png`), fullPage: true })

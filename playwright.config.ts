@@ -8,8 +8,8 @@ export default defineConfig({
   testDir: './tests/e2e', fullyParallel: true,
   use: { baseURL: 'http://127.0.0.1:4173', trace: 'retain-on-failure', screenshot: 'only-on-failure', channel: process.env.PLAYWRIGHT_CHANNEL || undefined },
   projects: [
-    { name: 'desktop', testMatch: 'catalog.spec.ts', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', testMatch: 'catalog.spec.ts', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
+    { name: 'desktop', testMatch: ['catalog.spec.ts', 'recent-sets.spec.ts'], use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', testMatch: ['catalog.spec.ts', 'recent-sets.spec.ts'], use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
     { name: 'account', testMatch: ['account.spec.ts', 'contact.spec.ts', 'album-account.spec.ts', 'wishlists.spec.ts'], use: { ...devices['Desktop Chrome'], baseURL: 'http://127.0.0.1:4174' } },
     { name: 'account-mobile', testMatch: ['account.spec.ts', 'contact.spec.ts', 'album-account.spec.ts', 'wishlists.spec.ts'], use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium', baseURL: 'http://127.0.0.1:4174' } },
   ],
