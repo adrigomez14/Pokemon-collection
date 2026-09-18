@@ -354,3 +354,9 @@ footer small, footer > a:last-child { color: #5c7283; }
 [data-theme="dark"] .cardmarket-referral-banner code { color: #ffd96a; }
 [data-theme="dark"] .cardmarket-referral-banner .wishlist-button { background: #1a3040 !important; border-color: #527184 !important; color: #e4edf4 !important; }
 [data-theme="dark"] footer { background: #0d1823; }
+[data-theme="dark"] .collection-actions button, [data-theme="dark"] .account-toolbar button, [data-theme="dark"] .actions button, [data-theme="dark"] .catalog-sync button, [data-theme="dark"] .pagination button, [data-theme="dark"] .search-bottom button { color: #c9dbe4; }
+[data-theme="dark"] .collection-actions .excel-button { background: #173b2d; border-color: #3f8064; color: #9de0b7; }
+[data-theme="dark"] .collection-actions .excel-button:hover:not(:disabled) { background: #20533d; border-color: #6aa889; color: #c4f1d4; }
+[data-theme="dark"] .ownership-filters button[aria-pressed="true"], [data-theme="dark"] .view-switch button[aria-pressed="true"] { color: #fff; }
+[data-theme="dark"] .recent-sets-heading h3, [data-theme="dark"] .recent-set-info, [data-theme="dark"] .recent-sets-arrow { color: #dce9ef; }
+[data-theme="dark"] .recent-sets-arrow { background: #162735; border-color: #3b5667; }
