@@ -360,3 +360,8 @@ footer small, footer > a:last-child { color: #5c7283; }
 [data-theme="dark"] .ownership-filters button[aria-pressed="true"], [data-theme="dark"] .view-switch button[aria-pressed="true"] { color: #fff; }
 [data-theme="dark"] .recent-sets-heading h3, [data-theme="dark"] .recent-set-info, [data-theme="dark"] .recent-sets-arrow { color: #dce9ef; }
 [data-theme="dark"] .recent-sets-arrow { background: #162735; border-color: #3b5667; }
+[data-theme="dark"] .card-tile-footer strong, [data-theme="dark"] .price-link { color: #79d7ee; }
+[data-theme="dark"] .wishlist-card-info strong { color: #edf5fa; }
+[data-theme="dark"] .collection-feature-value strong { color: #edf5fa; }
+[data-theme="dark"] .collection-feature-value .wishlist-button { background: #1a3040; border-color: #527184; color: #dce9ef; }
+[data-theme="dark"] .collection-feature-value .wishlist-button:hover:not(:disabled) { background: #244556; border-color: #6d94a5; color: #fff; }
