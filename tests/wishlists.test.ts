@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { imageUrl, type CardBrief, type Language } from '../src/lib/models'
 import {
   addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists,
+  loadWishlistPriceAlerts, markWishlistPriceAlertsRead, updatePriceAlertEmailPreference,
   removeWishlistItem, renameWishlist, updateWishlistItemTargetPrice, wishlistCardKey, wishlistErrorMessage, wishlistNameSchema,
   type Wishlist, type WishlistItem,
 } from '../src/lib/wishlists'
 
 const { client, requireClient } = vi.hoisted(() => {
-  const client = { auth: { getUser: vi.fn() }, from: vi.fn() }
+  const client = { auth: { getUser: vi.fn(), updateUser: vi.fn() }, from: vi.fn() }
   return { client, requireClient: vi.fn(() => client) }
 })
 // No importar la configuración ni construir un cliente Supabase real.
@@ -25,11 +26,11 @@ const results: (Result | Promise<Result>)[] = []
 function builder(table: string) {
   const result = results.shift() ?? { data: null, error: null }
   const query = {
-    table, select: vi.fn(), eq: vi.fn(), order: vi.fn(), range: vi.fn(), abortSignal: vi.fn(),
+    table, select: vi.fn(), eq: vi.fn(), order: vi.fn(), range: vi.fn(), abortSignal: vi.fn(), is: vi.fn(), in: vi.fn(), limit: vi.fn(),
     insert: vi.fn(), update: vi.fn(), delete: vi.fn(), upsert: vi.fn(), single: vi.fn(),
     then: (resolve: (value: Result) => unknown, reject: (error: unknown) => unknown) => Promise.resolve(result).then(resolve, reject),
   }
-  for (const method of [query.select, query.eq, query.order, query.range, query.abortSignal, query.insert, query.update, query.delete, query.upsert, query.single]) method.mockReturnValue(query)
+  for (const method of [query.select, query.eq, query.order, query.range, query.abortSignal, query.insert, query.update, query.delete, query.upsert, query.single, query.is, query.in, query.limit]) method.mockReturnValue(query)
   // El SDK devuelve un builder final sin abortSignal después de single().
   query.single.mockReturnValue({ then: query.then })
   return query
@@ -42,6 +43,7 @@ const writes = [
   ['add', (id: string, signal?: AbortSignal) => addWishlistItem(id, listId, card, 'en', signal)],
   ['target price', (id: string, signal?: AbortSignal) => updateWishlistItemTargetPrice(id, listId, card.id, 'en', 12.5, signal)],
   ['remove', (id: string, signal?: AbortSignal) => removeWishlistItem(id, listId, card.id, 'en', signal)],
+  ['mark alerts', (id: string, signal?: AbortSignal) => markWishlistPriceAlertsRead(id, [listId], signal)],
 ] as const
 
 beforeEach(() => {
@@ -50,12 +52,13 @@ beforeEach(() => {
   queries.length = 0
   requireClient.mockReturnValue(client)
   client.auth.getUser.mockResolvedValue({ data: { user: { id: alice, is_anonymous: false } }, error: null })
+  client.auth.updateUser.mockResolvedValue({ data: { user: { id: alice } }, error: null })
   client.from.mockImplementation((table: string) => { const query = builder(table); queries.push(query); return query })
   vi.stubGlobal('fetch', vi.fn(() => { throw new Error('Las pruebas no admiten red') }))
 })
 afterEach(() => {
   expect(fetch).not.toHaveBeenCalled()
-  expect(queries.every((query) => ['wishlists', 'wishlist_items'].includes(query.table))).toBe(true)
+  expect(queries.every((query) => ['wishlists', 'wishlist_items', 'wishlist_price_alerts'].includes(query.table))).toBe(true)
   vi.unstubAllGlobals()
 })
 
@@ -183,7 +186,8 @@ describe('Escrituras aisladas e identidad autenticada', () => {
     await addWishlistItem(alice, listId, detailed, 'en')
     await addWishlistItem(alice, listId, detailed, 'en')
     for (const q of queries) {
-      expect(q.upsert).toHaveBeenCalledWith({ list_id: listId, user_id: alice, card_id: card.id, language: 'en', card_snapshot: card, target_price: null }, { onConflict: 'list_id,card_id,language', ignoreDuplicates: true })
+      expect(q.upsert).toHaveBeenCalledWith({ list_id: listId, user_id: alice, card_id: card.id, language: 'en', card_snapshot: card }, { onConflict: 'list_id,card_id,language', ignoreDuplicates: true })
+      expect(q.upsert.mock.calls[0][0]).not.toHaveProperty('target_price')
       expect(q.update).not.toHaveBeenCalled()
     }
     expect(detailed.quantity).toBe(10)
@@ -256,6 +260,47 @@ describe('Escrituras aisladas e identidad autenticada', () => {
   it.each(['http://assets.tcgdex.net/en/a', 'https://assets.tcgdex.net.evil.example/a', 'https://evil.example/a', 'javascript:alert(1)', 'https://assets.tcgdex.net@evil.example/a', 'https://assets.tcgdex.net/a?tracking=1', 'https://assets.tcgdex.net:444/a', 'https://assets.tcgdex.net/a\n'])('rechaza imágenes externas o ambiguas: %j', async (image) => {
     await expect(addWishlistItem(alice, listId, { ...card, image }, 'en')).rejects.toThrow('no son válidos')
     expect(client.from).not.toHaveBeenCalled()
+  })
+})
+
+describe('Avisos acotados y correo', () => {
+  const ids = Array.from({ length: 20 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`)
+  it('marca solo los 20 UUID vistos y no todos los pendientes del propietario', async () => {
+    await markWishlistPriceAlertsRead(alice, ids)
+    expect(queries[0].in).toHaveBeenCalledExactlyOnceWith('id', ids)
+    expect(queries[0].eq).toHaveBeenCalledExactlyOnceWith('user_id', alice)
+    expect(queries[0].is).toHaveBeenCalledExactlyOnceWith('read_at', null)
+    expect(queries[0].update).toHaveBeenCalledWith({ read_at: expect.any(String) })
+  })
+  it.each([[], ['invalid'], [listId, listId], [...ids, listId]].map((values) => ({ values })))('rechaza lote inválido antes de conectar %#', async ({ values }) => {
+    await expect(markWishlistPriceAlertsRead(alice, values)).rejects.toThrow('no son válidos')
+    expect(requireClient).not.toHaveBeenCalled()
+  })
+  it('lee un máximo de 20 con orden estable y comprueba propietario', async () => {
+    results.push({ data: [], error: null })
+    await expect(loadWishlistPriceAlerts(alice)).resolves.toEqual([])
+    expect(queries[0].limit).toHaveBeenCalledWith(20)
+    expect(queries[0].order.mock.calls).toEqual([['created_at', { ascending: false }], ['id']])
+    results.push({ data: [{ id: listId, user_id: bob, list_id: listId, card_id: card.id, language: 'es', target_price: 10, observed_price: 9, created_at: list.created_at }], error: null })
+    await expect(loadWishlistPriceAlerts(alice)).rejects.toThrow('cuenta activa')
+  })
+  it('guarda correo y sanitiza rechazos de red sin ocultarlos', async () => {
+    await updatePriceAlertEmailPreference(alice, true)
+    expect(client.auth.updateUser).toHaveBeenCalledWith({ data: { price_alert_email: true } })
+    client.auth.updateUser.mockRejectedValueOnce(new Error('secret network'))
+    await expect(updatePriceAlertEmailPreference(alice, false)).rejects.toThrow('No se han podido')
+  })
+  it('no inicia el guardado de correo tras cancelar durante getUser', async () => {
+    const controller = new AbortController()
+    let finish!: (value: unknown) => void
+    client.auth.getUser.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+    const result = updatePriceAlertEmailPreference(alice, true, controller.signal)
+    const assertion = expect(result).rejects.toMatchObject({ name: 'AbortError' })
+    controller.abort()
+    await assertion
+    finish({ data: { user: { id: alice, is_anonymous: false } }, error: null })
+    await Promise.resolve()
+    expect(client.auth.updateUser).not.toHaveBeenCalled()
   })
 })
 

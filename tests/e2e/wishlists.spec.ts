@@ -7,7 +7,7 @@ const bob = { ...alice, id: '22222222-2222-4222-8222-222222222222', email: 'bob@
 const firstId = '33333333-3333-4333-8333-333333333333'
 const snapshot = { id: card.id, localId: card.localId, name: card.name, image: 'https://assets.tcgdex.net/en/sv/sv03.5/200' }
 const firstList = { id: firstId, user_id: alice.id, name: 'Favoritas', created_at: '2026-09-17T00:00:00Z' }
-const wished = { list_id: firstId, user_id: alice.id, card_id: card.id, language: 'es' as const, card_snapshot: snapshot, created_at: firstList.created_at }
+const wished = { list_id: firstId, user_id: alice.id, card_id: card.id, language: 'es' as const, card_snapshot: snapshot, target_price: null, created_at: firstList.created_at }
 const heart = (page: Page) => page.getByRole('button', { name: 'Listas de deseos de Pikachu', exact: true })
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Navegación principal', exact: true })
 
@@ -33,6 +33,7 @@ async function setup(page: Page, signedIn = true) {
     }
     if (table === 'user') return route.fulfill({ json: state.user })
     if (table === 'logout') return route.fulfill({ status: 204 })
+    if (table === 'wishlist_price_alerts' && method === 'GET') return route.fulfill({ json: [] })
     if (table === 'delete_own_account') {
       state.deleted = true; state.lists = []; state.items = []
       return route.fulfill({ json: null })
@@ -65,7 +66,11 @@ async function setup(page: Page, signedIn = true) {
       } else if (method === 'POST') {
         const item = request.postDataJSON() as WishlistItem
         expect(Object.keys(item.card_snapshot).sort()).toEqual(['id', 'image', 'localId', 'name'])
-        if (!state.items.some((row) => row.list_id === item.list_id && row.card_id === item.card_id && row.language === item.language)) state.items.push({ ...item, created_at: firstList.created_at })
+        expect(item).not.toHaveProperty('target_price')
+        if (!state.items.some((row) => row.list_id === item.list_id && row.card_id === item.card_id && row.language === item.language)) state.items.push({ ...item, target_price: null, created_at: firstList.created_at })
+      } else if (method === 'PATCH') {
+        state.items = state.items.map((row) => row.list_id === listId && row.card_id === url.searchParams.get('card_id')?.slice(3) && row.language === url.searchParams.get('language')?.slice(3) ? { ...row, target_price: request.postDataJSON().target_price } : row)
+        return route.fulfill({ json: { list_id: listId } })
       } else state.items = state.items.filter((row) => !(row.list_id === listId && row.card_id === url.searchParams.get('card_id')?.slice(3) && row.language === url.searchParams.get('language')?.slice(3)))
       return route.fulfill({ status: 204 })
     }
@@ -144,6 +149,45 @@ test('varias listas, idiomas, renombrado y borrado independiente persisten sin m
   expect(state.collectionWrites).toBe(0)
   await nav(page).getByRole('button', { name: /Mi colección/ }).click()
   await expect(page.getByRole('region', { name: 'Resumen de tu colección', exact: true })).toContainText('2 ejemplares')
+})
+
+test('el objetivo se guarda, persiste y no arrastra borradores entre listas', async ({ page }) => {
+  const state = await setup(page)
+  const secondId = '44444444-4444-4444-8444-444444444444'
+  state.lists = [firstList, { ...firstList, id: secondId, name: 'Para regalar' }]
+  state.items = [{ ...wished }, { ...wished, list_id: secondId }]
+  await page.reload()
+  await nav(page).getByRole('button', { name: 'Deseos', exact: true }).click()
+  const lists = page.getByRole('navigation', { name: 'Mis listas privadas' })
+  const field = page.getByRole('spinbutton', { name: 'Precio objetivo (€)', exact: true })
+  const save = page.locator('.wishlist-target-price').getByRole('button', { name: 'Guardar', exact: true })
+  await lists.getByRole('button', { name: /Favoritas/ }).click()
+  await field.fill('99')
+  await lists.getByRole('button', { name: /Para regalar/ }).click()
+  await expect(field).toHaveValue('')
+  await field.fill('12.50')
+  await save.click()
+  await expect(save).toBeEnabled()
+  await expect(field).toHaveValue('12.5')
+  expect(state.items.find((item) => item.list_id === secondId)?.target_price).toBe(12.5)
+  expect(state.items.find((item) => item.list_id === firstId)?.target_price).toBeNull()
+  await page.reload()
+  await lists.getByRole('button', { name: /Para regalar/ }).click()
+  await expect(field).toHaveValue('12.5')
+  state.failWrite = true
+  await field.fill('15')
+  await save.click()
+  await expect(page.locator('.wishlist-error')).toBeVisible()
+  expect(state.items.find((item) => item.list_id === secondId)?.target_price).toBe(12.5)
+  state.failWrite = false
+  await page.getByRole('button', { name: 'Reintentar carga', exact: true }).click()
+  await expect(field).toBeEnabled()
+  await field.fill('')
+  await save.click()
+  await expect(save).toBeEnabled()
+  await expect(field).toHaveValue('')
+  expect(state.items.every((item) => item.target_price === null)).toBe(true)
+  expect(state.collectionWrites).toBe(0)
 })
 
 test('un error de escritura no marca el corazón y bloquea duplicados hasta confirmar la recarga', async ({ page }) => {

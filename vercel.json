@@ -10,7 +10,8 @@
     { "source": "/privacidad", "destination": "/index.html" }
   ],
   "functions": {
-    "api/feedback-notification.ts": { "maxDuration": 30 }
+    "api/feedback-notification.ts": { "maxDuration": 30 },
+    "api/price-alerts.ts": { "maxDuration": 60 }
   },
   "crons": [{ "path": "/api/price-alerts", "schedule": "0 9 * * *" }],
   "headers": [{ "source": "/coleccion", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }, {

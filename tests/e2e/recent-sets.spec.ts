@@ -6,7 +6,8 @@ const titles = ['Zeta', 'Beta', 'Omega', 'Delta', 'Alfa', 'Gamma', 'Kappa', 'Ép
 const vocabulary = {
   es: { name: 'Español', common: 'Común', rare: 'Rara Ilustración Especial', category: 'Pokémon', type: 'Agua' },
   en: { name: 'Inglés', common: 'Common', rare: 'Special illustration rare', category: 'Pokemon', type: 'Water' },
-  ja: { name: 'Japonés', common: 'C', rare: 'SAR', category: 'ポケモン', type: '水' },
+  // TCGdex usa etiquetas de rareza inglesas también en su catálogo japonés.
+  ja: { name: 'Japonés', common: 'Common', rare: 'Special illustration rare', category: 'ポケモン', type: '水' },
 }
 const setFixture = (language: Language, id: string, name: string) => ({
   id, name, serie: { id: 'sv' }, cardCount: { total: 30, official: 30 },
@@ -97,6 +98,15 @@ const region = (page: Page) => page.getByRole('region', { name: 'Últimas expans
 const shortcuts = (page: Page) => region(page).getByRole('button', { name: /^Ver expansión / })
 const results = (page: Page) => page.getByLabel('Resultados del catálogo').locator('.card-tile')
 const expansionSelect = (page: Page) => page.getByRole('combobox', { name: 'Expansión', exact: true })
+
+async function refreshAfterFifteenMinutes(page: Page, language: Language = 'es') {
+  const updated = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.pathname === `/v2/${language}/sets` && url.searchParams.get('sort:field') === 'releaseDate'
+  })
+  await page.clock.fastForward('15:00')
+  await (await updated).finished()
+}
 
 async function openFilters(page: Page) {
   const more = page.getByRole('button', { name: 'Más filtros', exact: true })
@@ -308,17 +318,19 @@ test('los logos usan .webp sin /low y los errores o URLs inseguras muestran alte
 })
 
 for (const mode of ['error', 'empty'] as const) {
-  test(`la fila ${mode} no rompe las cartas principales y permite recuperarse`, async ({ page }) => {
+  test(`la fila ${mode} tras actualizarse automáticamente conserva las cartas y se recupera ${mode === 'error' ? 'al reintentar' : 'en el siguiente intervalo'}`, async ({ page }) => {
+    await page.clock.install()
     const state = await mockCatalog(page)
     await page.goto('/')
     await region(page).getByRole('button', { name: 'Ver expansión Español Beta', exact: true }).click()
     await expect(results(page).first()).toContainText('z-new-5')
     // El catálogo usa ahora un ID explícito: el fallo es solo del índice reciente.
     state.mode = mode
-    await page.getByRole('button', { name: 'Refrescar catálogo', exact: true }).click()
+    await refreshAfterFifteenMinutes(page)
     if (mode === 'error') {
       await expect(region(page).getByRole('status')).toContainText('Se conserva la última consulta')
       await expect(shortcuts(page)).toHaveCount(8)
+      await expect(shortcuts(page).locator('.recent-set-info > strong')).toHaveText(setsFor('es').slice(0, 8).map((set) => set.name))
     } else {
       await expect(region(page)).toContainText('No hay expansiones físicas disponibles en este idioma')
       await expect(shortcuts(page)).toHaveCount(0)
@@ -328,11 +340,25 @@ for (const mode of ['error', 'empty'] as const) {
     await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo', exact: true })).toHaveCount(0)
     state.mode = 'normal'
     state.refreshed = true
-    await page.getByRole('button', { name: mode === 'error' ? 'Reintentar expansiones' : 'Refrescar catálogo', exact: true }).click()
+    if (mode === 'error') {
+      const recovered = page.waitForResponse((response) => {
+        const url = new URL(response.url())
+        return url.pathname === '/v2/es/sets' && url.searchParams.has('sort:field') && response.ok()
+      })
+      await region(page).getByRole('button', { name: 'Reintentar expansiones', exact: true }).click()
+      await (await recovered).finished()
+    } else {
+      await refreshAfterFifteenMinutes(page)
+    }
     await expect(shortcuts(page).first()).toHaveAccessibleName('Ver expansión Español Nueva llegada')
     await expect(shortcuts(page)).toHaveCount(8)
     await expect(region(page).getByRole('status')).toHaveCount(0)
     await expect(results(page)).toHaveCount(24)
+    await expect(results(page).first()).toContainText('z-new-5')
+    await expect(expansionSelect(page)).toHaveValue('z-new')
+    await expect(region(page).getByRole('button', { name: 'Ver expansión Español Beta', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(shortcuts(page).first()).toHaveAttribute('aria-pressed', 'false')
+    await expect(region(page)).not.toContainText('No hay expansiones físicas disponibles en este idioma')
     expect(state.unexpected).toEqual([])
   })
 }
@@ -352,23 +378,55 @@ test('un error inicial de la fila conserva el buscador y el botón de todas las 
   await expect(results(page)).toHaveCount(24)
 })
 
-test('Refrescar incorpora el nuevo índice y mueve el activo LATEST al primer set', async ({ page }) => {
-  const state = await mockCatalog(page)
-  await page.goto('/')
-  await expect(results(page)).toHaveCount(24)
-  const before = state.requests.filter((url) => url.searchParams.has('sort:field') && url.pathname.endsWith('/sets')).length
-  state.refreshed = true
-  await page.getByRole('button', { name: 'Refrescar catálogo', exact: true }).click()
-  await expect(shortcuts(page).first()).toHaveAccessibleName('Ver expansión Español Nueva llegada')
-  await expect(shortcuts(page)).toHaveCount(8)
-  await expect(shortcuts(page).first()).toHaveAttribute('aria-pressed', 'true')
-  await expect(region(page).locator('[aria-pressed="true"]')).toHaveCount(1)
-  await expect(expansionSelect(page)).toHaveValue('__latest__')
-  await expect(expansionSelect(page).locator('option[value="future-test"]')).toHaveCount(1)
-  await expect(results(page).first()).toContainText('future-test-5')
-  expect(state.requests.filter((url) => url.searchParams.has('sort:field') && url.pathname.endsWith('/sets')).length).toBeGreaterThan(before)
-  expect(state.unexpected).toEqual([])
-})
+for (const language of ['es', 'en', 'ja'] as const) {
+  test(`la actualización automática a los 15 minutos mueve LATEST al nuevo set sin aplicar el borrador de filtros (${language})`, async ({ page }) => {
+    await page.clock.install()
+    const state = await mockCatalog(page)
+    await page.goto('/')
+    if (language !== 'es') await page.getByRole('combobox', { name: 'Idioma de las cartas' }).selectOption(language)
+    await expect(results(page)).toHaveCount(24)
+    await expect(results(page).first()).toContainText(`${language} Carta`)
+    await expect(shortcuts(page).first()).toHaveAccessibleName(`Ver expansión ${vocabulary[language].name} Zeta`)
+    await expect(page.getByRole('button', { name: 'Refrescar catálogo', exact: true })).toHaveCount(0)
+    await openFilters(page)
+    await page.getByRole('textbox', { name: 'Nombre de carta', exact: true }).fill('old-name')
+    await page.getByRole('textbox', { name: 'Número de carta', exact: true }).fill('025')
+    await page.getByRole('combobox', { name: 'Categoría de carta', exact: true }).selectOption(vocabulary[language].category)
+    await page.getByRole('combobox', { name: 'Rareza', exact: true }).selectOption(vocabulary[language].common)
+    await page.getByRole('combobox', { name: 'Tipo / elemento', exact: true }).selectOption(vocabulary[language].type)
+    await page.getByRole('checkbox', { name: 'Nombre exacto', exact: true }).check()
+    await page.getByRole('checkbox', { name: 'Sólo con imagen', exact: true }).check()
+    const before = state.requests.length
+    state.refreshed = true
+    const cards = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return url.pathname === `/v2/${language}/cards` && url.searchParams.get('set.id') === 'eq:future-test' && response.ok()
+    })
+    await refreshAfterFifteenMinutes(page, language)
+    await (await cards).finished()
+    await expect(shortcuts(page).first()).toHaveAccessibleName(`Ver expansión ${vocabulary[language].name} Nueva llegada`)
+    await expect(shortcuts(page)).toHaveCount(8)
+    await expect(shortcuts(page).first()).toHaveAttribute('aria-pressed', 'true')
+    await expect(region(page).locator('[aria-pressed="true"]')).toHaveCount(1)
+    await expect(expansionSelect(page)).toHaveValue('__latest__')
+    await expect(expansionSelect(page).locator('option[value="future-test"]')).toHaveCount(1)
+    await expect(results(page).first()).toContainText('future-test-5')
+    await expect(results(page)).toHaveCount(24)
+    await expect(results(page).locator('h3')).toHaveText([5, 4, 3, 2, 1, ...Array.from({ length: 19 }, (_, i) => 30 - i)].map((number) => `${language} Carta ${number}`))
+    await expect(page.locator('.pagination')).toContainText('Página 1')
+    await expect(page.getByRole('textbox', { name: 'Nombre de carta', exact: true })).toHaveValue('old-name')
+    const updates = state.requests.slice(before)
+    expect(updates.some((url) => url.pathname === `/v2/${language}/sets` && url.searchParams.has('sort:field'))).toBe(true)
+    const newCards = updates.filter((url) => url.pathname.endsWith('/cards'))
+    expect(newCards.length).toBeGreaterThan(0)
+    for (const url of newCards) {
+      expect(url.pathname).toBe(`/v2/${language}/cards`)
+      expect(url.searchParams.get('set.id')).toBe('eq:future-test')
+      expect([...url.searchParams.keys()].sort()).toEqual(url.searchParams.has('rarity') ? ['rarity', 'set.id'] : ['set.id'])
+    }
+    expect(state.unexpected).toEqual([])
+  })
+}
 
 test('teclado y desplazamiento mantienen accesibles las ocho expansiones sin desbordar a 320/390/768/1440', async ({ page }) => {
   await mockCatalog(page)

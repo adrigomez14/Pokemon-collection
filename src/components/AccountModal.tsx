@@ -19,6 +19,8 @@ export type AccountModalProps = {
   /** Exportar solo la colección actual como JSON, sin listas de deseos ni todos los datos personales. */
   onExport: () => void
   preferences: AccountPreferences
+  preferenceError?: string
+  preferencePending?: boolean
   onPreferencesChange: (preferences: Partial<AccountPreferences>) => void
 }
 
@@ -27,7 +29,7 @@ export function AccountModal(props: AccountModalProps) {
   return <AccountForm key={`${props.user.id}:${props.user.email ?? ''}`} {...props} />
 }
 
-function AccountForm({ user, canExport, onClose, onDeleted, onExport, preferences, onPreferencesChange }: AccountModalProps) {
+function AccountForm({ user, canExport, onClose, onDeleted, onExport, preferences, preferenceError, preferencePending, onPreferencesChange }: AccountModalProps) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [deletePassword, setDeletePassword] = useState('')
@@ -79,6 +81,8 @@ function AccountForm({ user, canExport, onClose, onDeleted, onExport, preference
       <p>Correo de la cuenta: <strong>{user.email ?? 'No disponible'}</strong></p>
       <section className="stack" aria-labelledby="account-preferences-heading">
         <h3 id="account-preferences-heading">Preferencias</h3>
+        {preferenceError && <p className="notice error" role="alert">{preferenceError}</p>}
+        {preferencePending && <p role="status">Guardando preferencias…</p>}
         <label>Idioma preferido<select value={preferences.language} onChange={(event) => onPreferencesChange({ language: event.target.value as AccountPreferences['language'] })}>
           <option value="es">Español</option><option value="en">Inglés</option><option value="ja">Japonés</option>
         </select></label>

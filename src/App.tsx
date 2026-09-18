@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { User } from '@supabase/supabase-js'
 import { ArrowDownToLine, ArrowUpFromLine, Bell, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Heart, Layers3, List, LogOut, Mail, Moon, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, Sun, TrendingUp, UserRound } from 'lucide-react'
@@ -22,6 +22,7 @@ import { cardmarketUrl, collectionStats, createBackupParts, entryValue, euros, f
 import { supabase } from './lib/supabase'
 import { ownedCardIds } from './lib/progress'
 import { pagePaths, usePageNavigation } from './lib/navigation'
+import { readLocalPreference, writeLocalPreference, saveAccountMetadata } from './lib/preferences'
 
 const client = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60000, refetchOnWindowFocus: true } } })
 export default function App() { return <QueryClientProvider client={client}><CollectionApp /></QueryClientProvider> }
@@ -35,13 +36,13 @@ function CollectionApp() {
   const [view, setView] = usePageNavigation()
   const [accountOpen, setAccountOpen] = useState(false)
   const [language, setLanguage] = useState<Language>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('pokefolio-language') : null
+    const saved = readLocalPreference('pokefolio-language')
     return saved === 'en' || saved === 'ja' ? saved : 'es'
   })
   const [search, setSearch] = useState<Search>({ name: '', set: LATEST_SET, number: '', page: 1 })
-  const [catalogLayout, setCatalogLayout] = useState<'grid' | 'list'>(() => typeof window !== 'undefined' && localStorage.getItem('pokefolio-layout') === 'list' ? 'list' : 'grid')
+  const [catalogLayout, setCatalogLayout] = useState<'grid' | 'list'>(() => readLocalPreference('pokefolio-layout') === 'list' ? 'list' : 'grid')
   const [pageSize, setPageSize] = useState<12 | 24 | 48>(() => {
-    const saved = Number(typeof window !== 'undefined' ? localStorage.getItem('pokefolio-page-size') : '')
+    const saved = Number(readLocalPreference('pokefolio-page-size'))
     return saved === 12 || saved === 48 ? saved : 24
   })
   const [selection, setSelection] = useState<Selection | null>(null)
@@ -52,8 +53,15 @@ function CollectionApp() {
   const [sort, setSort] = useState('recent')
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
-  const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('pokefolio-theme') === 'dark')
-    const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => readLocalPreference('pokefolio-theme') === 'dark')
+  const themeRef = useRef(darkMode)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notificationError, setNotificationError] = useState('')
+  const [notificationPending, setNotificationPending] = useState(false)
+  const notificationWrite = useRef<AbortController | null>(null)
+  const [preferenceError, setPreferenceError] = useState('')
+  const [preferencePending, setPreferencePending] = useState(0)
+  const accountScope = useRef({})
   const [exportingExcel, setExportingExcel] = useState(false)
   const [backup, setBackup] = useState<EntryInput[] | null>(null)
   const [exportParts, setExportParts] = useState<string[] | null>(null)
@@ -62,47 +70,67 @@ function CollectionApp() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
-    localStorage.setItem('pokefolio-theme', darkMode ? 'dark' : 'light')
+    writeLocalPreference('pokefolio-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
+  useEffect(() => { writeLocalPreference('pokefolio-layout', catalogLayout) }, [catalogLayout])
 
-  function applyAccountTheme(nextUser: User | null) {
+  function hydrateAccountPreferences(nextUser: User | null) {
     const savedTheme = nextUser?.user_metadata?.theme
-    if (savedTheme === 'dark' || savedTheme === 'light') setDarkMode(savedTheme === 'dark')
+    if (savedTheme === 'dark' || savedTheme === 'light') { themeRef.current = savedTheme === 'dark'; setDarkMode(themeRef.current) }
     const savedLanguage = nextUser?.user_metadata?.language
-    if (savedLanguage === 'es' || savedLanguage === 'en' || savedLanguage === 'ja') setLanguage(savedLanguage)
+    if (savedLanguage === 'es' || savedLanguage === 'en' || savedLanguage === 'ja') {
+      setLanguage(savedLanguage)
+      writeLocalPreference('pokefolio-language', savedLanguage)
+      setSearch({ name: '', set: LATEST_SET, number: '', page: 1 })
+    }
     const savedLayout = nextUser?.user_metadata?.catalog_layout
-    if (savedLayout === 'grid' || savedLayout === 'list') setCatalogLayout(savedLayout)
+    if (savedLayout === 'grid' || savedLayout === 'list') { setCatalogLayout(savedLayout); writeLocalPreference('pokefolio-layout', savedLayout) }
     const savedPageSize = Number(nextUser?.user_metadata?.page_size)
-    if (savedPageSize === 12 || savedPageSize === 24 || savedPageSize === 48) setPageSize(savedPageSize)
+    if (savedPageSize === 12 || savedPageSize === 24 || savedPageSize === 48) { setPageSize(savedPageSize); writeLocalPreference('pokefolio-page-size', String(savedPageSize)); setSearch((previous) => ({ ...previous, page: 1 })) }
   }
 
-  async function toggleDarkMode() {
-    const nextDarkMode = !darkMode
-    setDarkMode(nextDarkMode)
-    if (!user || !supabase) return
-    const { error } = await supabase.auth.updateUser({ data: { theme: nextDarkMode ? 'dark' : 'light' } })
-    if (error) setNotice({ text: 'El tema se ha aplicado, pero no se pudo guardar en tu cuenta.', error: true })
+  function toggleDarkMode() {
+    void updateAccountPreferences({ darkMode: !themeRef.current })
   }
 
   function updateLocalPreference(key: string, value: string) {
-    localStorage.setItem(key, value)
+    writeLocalPreference(key, value)
   }
 
   async function updateAccountPreferences(patch: Partial<AccountPreferences>) {
+    if (user && activeUser.current !== user.id) return
     if (patch.language) { setLanguage(patch.language); setSearch({ name: '', set: LATEST_SET, number: '', page: 1 }); updateLocalPreference('pokefolio-language', patch.language) }
     if (patch.catalogLayout) { setCatalogLayout(patch.catalogLayout); updateLocalPreference('pokefolio-layout', patch.catalogLayout) }
     if (patch.pageSize) { setPageSize(patch.pageSize); setSearch((previous) => ({ ...previous, page: 1 })); updateLocalPreference('pokefolio-page-size', String(patch.pageSize)) }
-    if (patch.darkMode !== undefined) setDarkMode(patch.darkMode)
+    if (patch.darkMode !== undefined) { themeRef.current = patch.darkMode; setDarkMode(patch.darkMode) }
     if (user && supabase) {
+      const scope = accountScope.current
+      const owner = user.id
+      const isCurrent = () => accountScope.current === scope && activeUser.current === owner
+      if (!isCurrent()) return
+      setPreferenceError(''); setPreferencePending((count) => count + 1)
       const data: Record<string, string | number> = {}
       if (patch.language) data.language = patch.language
       if (patch.catalogLayout) data.catalog_layout = patch.catalogLayout
       if (patch.pageSize) data.page_size = patch.pageSize
       if (patch.darkMode !== undefined) data.theme = patch.darkMode ? 'dark' : 'light'
-      const { error } = await supabase.auth.updateUser({ data })
-      if (error) setNotice({ text: 'La preferencia se aplicó, pero no se pudo guardar en tu cuenta.', error: true })
+      try { await saveAccountMetadata(supabase, owner, data, isCurrent) }
+      catch { if (isCurrent()) setPreferenceError('La preferencia se aplicó, pero no se pudo guardar en tu cuenta. Vuelve a seleccionarla para reintentar.') }
+      finally { if (isCurrent()) setPreferencePending((count) => count - 1) }
     }
   }
+
+  const clearAccountQueries = useCallback(() => {
+    accountScope.current = {}
+    notificationWrite.current?.abort(); notificationWrite.current = null
+    setNotificationsOpen(false); setNotificationPending(false); setNotificationError('')
+    setPreferencePending(0); setPreferenceError('')
+    for (const key of ['collection', 'wishlists', 'wishlist-price-alerts', 'price-alert-email']) {
+      void queryClient.cancelQueries({ queryKey: [key] }).catch(() => {})
+      queryClient.removeQueries({ queryKey: [key] })
+    }
+    queryClient.removeQueries({ queryKey: ['catalog'] })
+  }, [queryClient])
 
   useEffect(() => {
     if (!supabase) return
@@ -112,44 +140,56 @@ function CollectionApp() {
       if (!alive) return
       received = true
       const nextId = session?.user.id ?? null
+      // Las respuestas tardías de una escritura no pueden restaurar otra identidad.
+      if ((event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') && activeUser.current !== nextId) return
       if (activeUser.current !== nextId) {
-        void queryClient.cancelQueries({ queryKey: ['collection'] })
-        queryClient.removeQueries({ queryKey: ['collection'] })
-        void queryClient.cancelQueries({ queryKey: ['wishlists'] })
-        queryClient.removeQueries({ queryKey: ['wishlists'] })
-        queryClient.removeQueries({ queryKey: ['catalog'] })
+        clearAccountQueries()
         setSearch((previous) => ({ ...previous, ownership: 'all', page: 1 }))
         setSelection(null); setBackup(null); setExportParts(null); setNotice(null)
         setAccountOpen(false)
+        hydrateAccountPreferences(session?.user ?? null)
       }
       activeUser.current = nextId
       setUser(session?.user ?? null); setAuthLoading(false)
-      applyAccountTheme(session?.user ?? null)
       if (event === 'PASSWORD_RECOVERY') { setRecovery(true); setAuthOpen(true) }
     })
     void supabase.auth.getSession().then(({ data, error }) => {
       if (!alive || received) return
       if (error) setNotice({ text: 'No se ha podido recuperar la sesión. Vuelve a iniciar sesión.', error: true })
       if (activeUser.current !== (data.session?.user.id ?? null)) {
-        void queryClient.cancelQueries({ queryKey: ['wishlists'] })
-        queryClient.removeQueries({ queryKey: ['wishlists'] })
+        clearAccountQueries()
+        hydrateAccountPreferences(data.session?.user ?? null)
       }
       activeUser.current = data.session?.user.id ?? null
       setUser(data.session?.user ?? null); setAuthLoading(false)
-      applyAccountTheme(data.session?.user ?? null)
+    }).catch(() => {
+      if (alive && !received) { setAuthLoading(false); setNotice({ text: 'No se ha podido recuperar la sesión. Vuelve a iniciar sesión.', error: true }) }
     })
-    return () => { alive = false; subscription.unsubscribe() }
-  }, [queryClient])
+    return () => { alive = false; accountScope.current = {}; notificationWrite.current?.abort(); subscription.unsubscribe() }
+  }, [clearAccountQueries])
 
   const collection = useQuery({ queryKey: ['collection', user?.id], queryFn: ({ signal }) => loadCollection(user!.id, signal), enabled: Boolean(user), staleTime: 15000 })
-    const notifications = useQuery({ queryKey: ['wishlist-price-alerts', user?.id], queryFn: ({ signal }) => loadWishlistPriceAlerts(user!.id, signal), enabled: Boolean(user), staleTime: 60000 })
+  const notifications = useQuery({ queryKey: ['wishlist-price-alerts', user?.id], queryFn: ({ signal }) => loadWishlistPriceAlerts(user!.id, signal), enabled: Boolean(user), staleTime: 60000 })
 
-    async function markNotificationsRead() {
-      if (!user || !notifications.data?.length) return
-      await markWishlistPriceAlertsRead(user.id)
-      setNotificationsOpen(false)
-      await queryClient.invalidateQueries({ queryKey: ['wishlist-price-alerts', user.id] })
+  async function markNotificationsRead() {
+    if (!user || activeUser.current !== user.id || !notificationsOpen || !notifications.data?.length || notificationWrite.current) return
+    const owner = user.id
+    const scope = accountScope.current
+    const controller = new AbortController()
+    const isCurrent = () => accountScope.current === scope && activeUser.current === owner && !controller.signal.aborted
+    const ids = notifications.data.filter((alert) => alert.user_id === owner).map((alert) => alert.id)
+    notificationWrite.current = controller
+    setNotificationPending(true); setNotificationError('')
+    try {
+      await markWishlistPriceAlertsRead(owner, ids, controller.signal)
+      if (!isCurrent()) return
+      await queryClient.invalidateQueries({ queryKey: ['wishlist-price-alerts', owner], exact: true })
+    } catch {
+      if (isCurrent()) setNotificationError('No se pudieron marcar las notificaciones como leídas. Inténtalo de nuevo.')
+    } finally {
+      if (isCurrent()) { notificationWrite.current = null; setNotificationPending(false) }
     }
+  }
   const entries = user ? collection.data ?? [] : []
   const owned = ownedCardIds(entries, language)
   const byOwnership = search.ownership === 'missing' || search.ownership === 'owned'
@@ -257,11 +297,7 @@ function CollectionApp() {
     if (activeUser.current && activeUser.current !== deletedUserId) return
     activeUser.current = null
     setUser(null); setAccountOpen(false); setSelection(null); setBackup(null); setExportParts(null)
-    void queryClient.cancelQueries({ queryKey: ['collection'] })
-    queryClient.removeQueries({ queryKey: ['collection'] })
-    void queryClient.cancelQueries({ queryKey: ['wishlists'] })
-    queryClient.removeQueries({ queryKey: ['wishlists'] })
-    queryClient.removeQueries({ queryKey: ['catalog'] })
+    clearAccountQueries()
     setSearch({ name: '', set: LATEST_SET, number: '', page: 1 })
     setView('catalog')
     setNotice({ text: 'Cuenta eliminada. Si el navegador conserva una sesión antigua, borra los datos de este sitio. Las copias de correo se gestionan según la política de privacidad.' })
@@ -294,11 +330,13 @@ function CollectionApp() {
           <div className="account">
             {user && <div className="notification-control">
               <button className="icon-button notification-toggle" aria-label={`Notificaciones${notifications.data?.length ? ` (${notifications.data.length} nuevas)` : ''}`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((current) => !current)}><Bell size={18} />{notifications.data?.length ? <span className="notification-count">{notifications.data.length > 9 ? '9+' : notifications.data.length}</span> : null}</button>
-              {notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notificaciones de precios">
+              {notificationsOpen && <div className="notification-popover" style={{ maxHeight: 'min(60dvh, 32rem)', overflowY: 'auto' }} role="dialog" aria-label="Notificaciones de precios">
                 <strong>Notificaciones</strong>
-                {!notifications.data?.length ? <p>No tienes avisos nuevos.</p> : <>
+                {notificationError && <p role="alert">{notificationError}</p>}
+                {notifications.isError && <p role="alert">No se pudieron cargar las notificaciones. <button onClick={() => void notifications.refetch()}>Reintentar notificaciones</button></p>}
+                {notifications.isPending ? <p role="status">Cargando notificaciones…</p> : !notifications.data?.length ? !notifications.isError && <p>No tienes avisos nuevos.</p> : <>
                   {notifications.data.map((alert: WishlistPriceAlert) => <p key={alert.id}><strong>{alert.card_id}</strong> ha alcanzado {alert.observed_price.toFixed(2)} € (objetivo {alert.target_price.toFixed(2)} €).</p>)}
-                  <button className="text-button" onClick={() => void markNotificationsRead()}>Marcar como leídas</button>
+                  <button className="text-button" disabled={notificationPending || notifications.isFetching || notifications.isError} onClick={() => void markNotificationsRead()}>{notificationPending ? 'Marcando…' : 'Marcar como leídas'}</button>
                 </>}
               </div>}
             </div>}
@@ -315,6 +353,8 @@ function CollectionApp() {
         </div>
       </header>
       <main id="main" className={`main view-${view}`}>
+        {preferenceError && !accountOpen && <p className="notice error" role="alert">{preferenceError}</p>}
+        {preferencePending > 0 && !accountOpen && <p role="status">Guardando preferencias…</p>}
         {view === 'collection' && user && <div className="account-toolbar"><button onClick={() => setAccountOpen(true)}><UserRound size={17} />Gestionar cuenta</button></div>}
         {(view === 'catalog' || view === 'collection') && <>
           {view === 'catalog'
@@ -342,7 +382,7 @@ function CollectionApp() {
               <button disabled={busy || collection.isPending || collection.isError} onClick={() => fileInput.current?.click()}><ArrowUpFromLine size={16} />Importar</button><input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => void selectBackup(e.target.files?.[0])} />
             </div>}</div>
             {view === 'catalog' ? <>
-              <CatalogSearch key={`${language}:${search.ownership ?? 'all'}`} language={language} search={search} onSearch={setSearch} />
+              <CatalogSearch key={`${user?.id ?? 'anonymous'}:${language}:${search.ownership ?? 'all'}`} language={language} search={search} onSearch={setSearch} />
               {search.set && <SetProgress language={language} search={search} entries={entries} signedIn={Boolean(user)} ready={collection.isSuccess} failed={collection.isError} onFilter={(ownership) => setSearch((previous) => ({ ...previous, ownership, page: 1 }))} onAuth={openAuth} />}
               {user && collection.isError && <div className="notice error" role="alert"><span>No se pudo cargar tu colección. No podemos determinar qué cartas tienes o te faltan.</span><button onClick={() => void collection.refetch()}>Reintentar colección</button><button onClick={() => setSearch((previous) => ({ ...previous, ownership: 'all', page: 1 }))}>Ver todas las cartas</button></div>}
               <div className="catalog-meta"><span>{catalog.isFetching ? 'Buscando cartas…' : `Página ${search.page} · ${catalog.data?.length ?? 0} cartas en esta página`}</span><div className="view-switch" role="group" aria-label="Presentación del catálogo"><button aria-label="Ver lista" aria-pressed={catalogLayout === 'list'} onClick={() => setCatalogLayout('list')}><List size={16} /><span>Lista</span></button><button aria-label="Ver cuadrícula" aria-pressed={catalogLayout === 'grid'} onClick={() => setCatalogLayout('grid')}><Grid2X2 size={16} /><span>Cuadrícula</span></button></div></div>
@@ -371,7 +411,7 @@ function CollectionApp() {
         </footer>
       </main>
       {authOpen && <AuthModal onClose={closeAuth} recovery={recovery} />}
-      {accountOpen && user && <AccountModal user={user} canExport={collection.isSuccess && entries.length > 0} preferences={{ language, catalogLayout, pageSize, darkMode }} onPreferencesChange={(patch) => { void updateAccountPreferences(patch) }} onClose={() => setAccountOpen(false)} onDeleted={() => accountDeleted(user.id)} onExport={() => { if (collection.isSuccess && entries.length) { setAccountOpen(false); exportCollection() } }} />}
+      {accountOpen && user && <AccountModal user={user} canExport={collection.isSuccess && entries.length > 0} preferences={{ language, catalogLayout, pageSize, darkMode }} preferenceError={preferenceError} preferencePending={preferencePending > 0} onPreferencesChange={(patch) => { void updateAccountPreferences(patch) }} onClose={() => setAccountOpen(false)} onDeleted={() => accountDeleted(user.id)} onExport={() => { if (collection.isSuccess && entries.length) { setAccountOpen(false); exportCollection() } }} />}
       {exportParts && <Modal title="Exportar colección por partes" onClose={() => setExportParts(null)}><div className="stack"><p>Tu colección se divide en {exportParts.length} copias para que todas puedan importarse. Descarga y conserva cada parte.</p>{exportParts.map((part, index) => <button key={index} onClick={() => downloadBackup(part, index + 1)}><ArrowDownToLine size={16} />Descargar parte {index + 1}</button>)}</div></Modal>}
       {selection && <CardModal key={`${selection.language}:${selection.card.id}:${selection.entry?.id ?? ''}`} selection={selection} signedIn={Boolean(user)} onClose={() => setSelection(null)} onAuth={openAuth} onSave={save} onDelete={deleteEntry} />}
       {backup && <Modal title="Importar copia de tu colección" onClose={() => setBackup(null)} busy={busy}><div className="stack"><p>Se importarán <strong>{backup.length} registros</strong> en tu cuenta.</p><p>Si ya existe la misma carta, idioma, variante y conservación, se reemplazarán su cantidad, notas y valor manual por los de la copia. No se borrarán las demás cartas.</p><p className="muted">Exporta primero tu colección si quieres conservar una copia del estado actual.</p><button className="primary" disabled={busy || !backup.length} onClick={() => void confirmImport()}>{busy ? 'Importando…' : 'Confirmar importación'}</button></div></Modal>}

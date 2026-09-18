@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, Heart, LockKeyhole, Plus, Trash2, ArrowRight, ShieldCheck, Sparkles, BookOpen } from 'lucide-react'
 import { cardmarketUrl, languages, type CardBrief, type Language } from '../lib/models'
@@ -282,7 +282,6 @@ function WishlistTargetPrice({ item, canWrite, pending, onSave }: {
   item: WishlistItem; canWrite: boolean; pending: boolean; onSave: (value: number | null) => Promise<boolean>
 }) {
   const [value, setValue] = useState(item.target_price === null ? '' : String(item.target_price))
-  useEffect(() => setValue(item.target_price === null ? '' : String(item.target_price)), [item.target_price])
   async function submit(event: FormEvent) {
     event.preventDefault()
     const parsed = value.trim() === '' ? null : Number(value)
@@ -297,6 +296,7 @@ function WishlistTargetPrice({ item, canWrite, pending, onSave }: {
 
 function WishlistPriceAlerts({ userId, items }: { userId: string; items: WishlistItem[] }) {
   const alerts = useQuery({ queryKey: ['wishlist-price-alerts', userId], queryFn: ({ signal }) => loadWishlistPriceAlerts(userId, signal), staleTime: 60000 })
+  if (alerts.isError) return <p role="alert">No se pudieron cargar los avisos de precio. <button onClick={() => void alerts.refetch()}>Reintentar avisos</button></p>
   if (!alerts.data?.length) return null
   return <div className="wishlist-price-alerts" role="status">
     <strong>Precios objetivo alcanzados</strong>
@@ -311,15 +311,34 @@ function PriceAlertSettings({ userId }: { userId: string }) {
   const queryClient = useQueryClient()
   const preference = useQuery({ queryKey: ['price-alert-email', userId], queryFn: ({ signal }) => loadPriceAlertEmailPreference(userId, signal), staleTime: 60000 })
   const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
+  const inFlight = useRef(false)
+  const lifetime = useRef<AbortController | null>(null)
+  useLayoutEffect(() => {
+    const controller = new AbortController()
+    lifetime.current = controller
+    return () => { controller.abort() }
+  }, [userId])
   async function changePreference(enabled: boolean) {
-    setPending(true)
+    const controller = lifetime.current
+    if (!controller || controller.signal.aborted || inFlight.current) return
+    inFlight.current = true
+    setPending(true); setError('')
     try {
-      await updatePriceAlertEmailPreference(userId, enabled)
+      await updatePriceAlertEmailPreference(userId, enabled, controller.signal)
+      if (controller.signal.aborted) return
       queryClient.setQueryData(['price-alert-email', userId], enabled)
-    } finally { setPending(false) }
+    } catch {
+      if (!controller.signal.aborted) setError('No se pudo guardar la preferencia de correo. Inténtalo de nuevo.')
+    } finally {
+      if (!controller.signal.aborted) { inFlight.current = false; setPending(false) }
+    }
   }
   return <div className="wishlist-alert-settings">
-    <div><strong>Avisos de precio</strong><p>Añade un precio objetivo a las cartas que quieras seguir. Cuando una carta alcance ese importe, recibirás siempre una notificación dentro de Pokéfolio.</p><p className="wishlist-alert-schedule">La comprobación se realiza una vez al día en el plan actual, por lo que el aviso puede tardar hasta 24 horas.</p></div>
+    <div><strong>Avisos de precio</strong><p>Añade un precio objetivo a las cartas que quieras seguir. Cuando la comprobación detecte que una carta ha alcanzado ese importe, se generará una notificación dentro de Pokéfolio.</p><p className="wishlist-alert-schedule">La comprobación se ejecuta a diario. Los avisos y correos pueden demorarse más de un día según las comprobaciones pendientes y los reintentos; no son instantáneos.</p></div>
+    {error && <p role="alert">{error}</p>}
+    {preference.isError && <p role="alert">No se pudo cargar la preferencia de correo. <button onClick={() => void preference.refetch()}>Reintentar preferencia</button></p>}
+    {pending && <p role="status">Guardando preferencia de correo…</p>}
     <label><input type="checkbox" checked={preference.data === true} disabled={pending || preference.isPending || preference.isError} onChange={(event) => { void changePreference(event.target.checked) }} /> Enviarme también un correo</label>
   </div>
 }
@@ -478,7 +497,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
                       <CardImage card={item.card_snapshot} />
                       <span className="wishlist-card-info"><strong>{item.card_snapshot.name}</strong><span>{languages[item.language]}</span><small>N.º {item.card_snapshot.localId}</small></span>
                     </button>
-                    <WishlistTargetPrice item={item} canWrite={canWrite} pending={pending} onSave={(targetPrice) => save((owner, signal) => updateWishlistItemTargetPrice(owner, selected.id, item.card_id, item.language, targetPrice, signal))} />
+                    <WishlistTargetPrice key={`${item.list_id}:${item.target_price ?? 'none'}`} item={item} canWrite={canWrite} pending={pending} onSave={(targetPrice) => save((owner, signal) => updateWishlistItemTargetPrice(owner, selected.id, item.card_id, item.language, targetPrice, signal))} />
                     <button type="button" className="wishlist-button wishlist-card-remove" disabled={!canWrite}
                       aria-label={`Quitar ${item.card_snapshot.name} en ${languages[item.language]} de ${selected.name}`}
                       onClick={() => setDialog({ kind: 'remove', list: selected, item })}><Trash2 size={16} aria-hidden="true" />Quitar de esta lista</button>

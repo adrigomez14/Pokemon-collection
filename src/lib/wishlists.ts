@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { briefSchema, languageSchema, type CardBrief, type Language } from './models'
 import { requireSupabase } from './supabase'
+import { saveAccountMetadata } from './preferences'
 
 export const wishlistNameSchema = z.string().trim().min(1, 'Escribe un nombre.').max(80, 'El nombre admite hasta 80 caracteres.')
 const uuidSchema = z.string().uuid()
@@ -123,7 +124,7 @@ export async function loadWishlistPriceAlerts(userId: string, signal?: AbortSign
   return safely(signal, async () => {
     const client = await writeClient(userId, signal)
     let query = client.from('wishlist_price_alerts').select('id,user_id,list_id,card_id,language,target_price,observed_price,created_at,read_at')
-      .eq('user_id', userId).is('read_at', null).order('created_at', { ascending: false }).limit(20)
+      .eq('user_id', userId).is('read_at', null).order('created_at', { ascending: false }).order('id').limit(20)
     if (signal) query = query.abortSignal(signal)
     const { data, error } = await abortable(query, signal)
     if (error) throw error
@@ -139,16 +140,19 @@ export async function loadPriceAlertEmailPreference(userId: string, signal?: Abo
 }
 
 export async function updatePriceAlertEmailPreference(userId: string, enabled: boolean, signal?: AbortSignal): Promise<void> {
-  const client = await writeClient(userId, signal)
-  const { error } = await abortable(client.auth.updateUser({ data: { price_alert_email: enabled } }), signal)
-  if (error) throw new WishlistError(wishlistErrorMessage(error))
-}
-
-export async function markWishlistPriceAlertsRead(userId: string, signal?: AbortSignal): Promise<void> {
   return safely(signal, async () => {
     const client = await writeClient(userId, signal)
+    await abortable(saveAccountMetadata(client, userId, { price_alert_email: z.boolean().parse(enabled) }, () => !signal?.aborted), signal)
+  })
+}
+
+/** Marca exclusivamente el lote mostrado; nunca consume avisos aún no vistos. */
+export async function markWishlistPriceAlertsRead(userId: string, alertIds: readonly string[], signal?: AbortSignal): Promise<void> {
+  return safely(signal, async () => {
+    const ids = z.array(uuidSchema).min(1).max(20).refine((values) => new Set(values).size === values.length).parse(alertIds)
+    const client = await writeClient(userId, signal)
     let query = client.from('wishlist_price_alerts').update({ read_at: new Date().toISOString() })
-      .eq('user_id', userId).is('read_at', null)
+      .eq('user_id', userId).is('read_at', null).in('id', ids)
     if (signal) query = query.abortSignal(signal)
     const { error } = await abortable(query, signal)
     if (error) throw error
@@ -200,8 +204,10 @@ export async function addWishlistItem(userId: string, listId: string, card: Card
     const snapshot = snapshotSchema.strip().parse(card)
     const parsedLanguage = languageSchema.parse(language)
     const client = await writeClient(userId, signal)
+    // INSERT solo permite la ficha original; el objetivo usa su NULL por defecto.
+    // No incluirlo tampoco en duplicados: conservar el objetivo ya guardado.
     let query = client.from('wishlist_items').upsert({
-      list_id: listId, user_id: userId, card_id: snapshot.id, language: parsedLanguage, card_snapshot: snapshot, target_price: null,
+      list_id: listId, user_id: userId, card_id: snapshot.id, language: parsedLanguage, card_snapshot: snapshot,
     }, { onConflict: 'list_id,card_id,language', ignoreDuplicates: true }).eq('user_id', userId)
     if (signal) query = query.abortSignal(signal)
     const { error } = await abortable(query, signal)

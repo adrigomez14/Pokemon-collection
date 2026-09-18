@@ -6,7 +6,7 @@ test('el tema de entrenador conserva controles legibles sin desbordar en distint
   await page.goto('/')
   await expect(page.getByRole('region', { name: 'Tu aventura Pokémon TCG' })).toBeVisible()
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Tu aventura empieza')
-  await expect(page.locator('.search-panel').getByRole('button', { name: 'Refrescar catálogo', exact: true })).toHaveText('Refrescar')
+  await expect(page.getByRole('button', { name: 'Refrescar catálogo', exact: true })).toHaveCount(0)
   await expect(page.locator('.catalog-sync')).toHaveCount(0)
   await expect(page.getByText('expansiones disponibles', { exact: false })).toHaveCount(0)
   await expect(page.getByText('Última consulta:', { exact: false })).toHaveCount(0)
@@ -49,6 +49,8 @@ test('inicia sin nombre y consulta la expansión más reciente sin fijar su ID',
 })
 
 test.beforeEach(async ({ page }) => {
+  // Solo Vite local y respuestas simuladas: ninguna llamada a servicios reales.
+  await page.route('**/*', (route) => new URL(route.request().url()).hostname === '127.0.0.1' ? route.continue() : route.abort())
   await page.route('https://api.tcgdex.net/v2/**', async (route) => {
     const url = new URL(route.request().url())
     if (/\/sets\/[^/]+$/.test(url.pathname)) return route.fulfill({ json: { id: decodeURIComponent(url.pathname.split('/').at(-1)!), name: 'Base Set', serie: { id: 'base' }, cardCount: { total: 2, official: 2 }, cards: [card, { id: 'base1-1', name: 'Sin imagen', localId: '1', image: null }] } })
@@ -95,7 +97,8 @@ test('filtra, cambia a japonés y no desborda la pantalla', async ({ page }) => 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('incorpora expansiones nuevas al recargar y seleccionarlas elimina el nombre anterior', async ({ page }) => {
+test('incorpora expansiones nuevas automáticamente a los 15 minutos y seleccionarlas elimina el nombre anterior', async ({ page }) => {
+  await page.clock.install()
   let includeNew = false
   await page.route('https://api.tcgdex.net/v2/es/cards?**', (route) => {
     const url = new URL(route.request().url())
@@ -108,10 +111,17 @@ test('incorpora expansiones nuevas al recargar y seleccionarlas elimina el nombr
   ] }))
   await page.goto('/')
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option')).toHaveCount(3)
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
   await page.getByLabel('Nombre de carta').fill('Pikachu')
   includeNew = true
-  await page.getByRole('button', { name: 'Refrescar catálogo', exact: true }).click()
+  const updated = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.pathname === '/v2/es/sets' && !url.searchParams.has('sort:field') && response.ok()
+  })
+  await page.clock.fastForward('15:00')
+  await (await updated).finished()
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option')).toHaveCount(4)
+  await expect(page.getByLabel('Nombre de carta')).toHaveValue('Pikachu')
   const request = page.waitForRequest((req) => new URL(req.url()).searchParams.get('set.id') === 'eq:future-test')
   await page.getByLabel('Expansión', { exact: true }).selectOption('future-test')
   const url = new URL((await request).url())
@@ -134,12 +144,19 @@ test('actualiza automáticamente el índice de expansiones con el catálogo abie
   })
   await page.goto('/')
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option[value="initial-test"]')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: 'Refrescar catálogo', exact: true })).toBeEnabled()
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: 'Refrescar catálogo', exact: true })).toHaveCount(0)
   const initialQueries = queries
   includeNew = true
+  const updated = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.pathname === '/v2/es/sets' && !url.searchParams.has('sort:field') && response.ok()
+  })
   await page.clock.fastForward('15:00')
+  await (await updated).finished()
   await expect.poll(() => queries).toBeGreaterThan(initialQueries)
   await expect(page.getByLabel('Expansión', { exact: true }).locator('option[value="new-test"]')).toHaveCount(1)
+  await expect(page.getByLabel('Expansión', { exact: true }).locator('option[value="initial-test"]')).toHaveCount(0)
 })
 
 test('un fallo del índice de opciones no impide mostrar novedades del índice físico ordenado', async ({ page }) => {
@@ -148,6 +165,41 @@ test('un fallo del índice de opciones no impide mostrar novedades del índice f
   await expect(page.getByRole('alert')).toContainText('No se pudo actualizar la lista')
   await expect(page.getByRole('button', { name: /base1-58.*Pikachu/ })).toBeVisible()
 })
+
+for (const cached of [false, true]) {
+  test(`el índice de opciones se recupera automáticamente del error ${cached ? 'conservando las opciones cacheadas' : 'inicial'} sin bloquear las cartas`, async ({ page }) => {
+    await page.clock.install()
+    let failing = !cached
+    await page.route('https://api.tcgdex.net/v2/es/sets?**', (route) => {
+      const url = new URL(route.request().url())
+      return !url.searchParams.has('sort:field') && failing ? route.fulfill({ status: 503, body: 'Unavailable' }) : route.fallback()
+    })
+    const expansion = page.getByLabel('Expansión', { exact: true })
+    await page.goto('/')
+    await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
+    if (cached) {
+      await expect(expansion.locator('option[value="base1"]')).toHaveCount(1)
+      failing = true
+      const failed = page.waitForResponse((response) => new URL(response.url()).pathname === '/v2/es/sets' && response.status() === 503)
+      await page.clock.fastForward('15:00')
+      await (await failed).finished()
+    }
+    await expect(page.getByRole('alert')).toContainText('No se pudo actualizar la lista')
+    await expect(expansion.locator('option[value="base1"]')).toHaveCount(cached ? 1 : 0)
+    await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
+    failing = false
+    const recovered = page.waitForResponse((response) => {
+      const url = new URL(response.url())
+      return url.pathname === '/v2/es/sets' && !url.searchParams.has('sort:field') && response.ok()
+    })
+    await page.clock.fastForward('15:00')
+    await (await recovered).finished()
+    await expect(expansion.locator('option[value="base1"]')).toHaveCount(1)
+    await expect(page.getByRole('alert')).toHaveCount(0)
+    await expect(expansion).toHaveValue('__latest__')
+    await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
+  })
+}
 
 test('no simula guardado sin Supabase y explica la activación', async ({ page }) => {
   await page.goto('/')
@@ -160,10 +212,18 @@ test('no simula guardado sin Supabase y explica la activación', async ({ page }
 })
 
 test('presenta errores del proveedor y permite reintentar', async ({ page }) => {
-  await page.route('https://api.tcgdex.net/v2/**', (route) => route.fulfill({ status: 503, body: 'Unavailable' }))
+  let failing = true
+  await page.route('https://api.tcgdex.net/v2/**', (route) => failing ? route.fulfill({ status: 503, body: 'Unavailable' }) : route.fallback())
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toBeVisible({ timeout: 15000 })
   await expect(page.getByRole('button', { name: 'Reintentar', exact: true })).toBeVisible()
+  failing = false
+  const recovered = page.waitForResponse((response) => new URL(response.url()).pathname === '/v2/es/cards' && response.ok())
+  await page.getByRole('button', { name: 'Reintentar', exact: true }).click()
+  await (await recovered).finished()
+  await expect(page.getByLabel('Resultados del catálogo').locator('.card-tile')).toHaveCount(2)
+  await expect(page.getByRole('button', { name: /base1-58.*Pikachu/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'No se pudo cargar el catálogo' })).toHaveCount(0)
 })
 
 test('muestra el precio de Blastoise holo sin confundirlo con la oferta española mínima', async ({ page }) => {
@@ -247,7 +307,7 @@ test('cambia entre lista y cuadrícula sin perder resultados ni abrir otra búsq
   expect(searches).toBe(0)
 })
 
-test('un fallo de las opciones avanzadas no bloquea la búsqueda y permite recargarlas', async ({ page }) => {
+test('un fallo de las opciones avanzadas no bloquea la búsqueda y se recupera al recargar y reabrir filtros', async ({ page }) => {
   let failing = true
   await page.route('https://api.tcgdex.net/v2/es/rarities', (route) => failing ? route.fulfill({ status: 503 }) : route.fulfill({ json: ['Común'] }))
   await page.goto('/')
@@ -258,8 +318,13 @@ test('un fallo de las opciones avanzadas no bloquea la búsqueda y permite recar
   await page.getByRole('button', { name: 'Buscar cartas', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'No encontramos esas cartas' })).toBeVisible()
   failing = false
-  await page.getByRole('button', { name: 'Refrescar catálogo', exact: true }).click()
+  await page.reload()
+  if (await page.getByRole('button', { name: 'Más filtros', exact: true }).isVisible()) await page.getByRole('button', { name: 'Más filtros', exact: true }).click()
+  const recovered = page.waitForResponse((response) => new URL(response.url()).pathname === '/v2/es/rarities' && response.ok())
+  await page.getByText('Más opciones de filtro', { exact: true }).click()
+  await (await recovered).finished()
   await page.getByLabel('Rareza', { exact: true }).selectOption('Común')
+  await expect(page.getByLabel('Rareza', { exact: true })).toHaveValue('Común')
   await expect(page.getByText('No se pudieron cargar las opciones.', { exact: false })).toHaveCount(0)
 })
 
