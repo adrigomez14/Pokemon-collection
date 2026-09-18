@@ -1,4 +1,4 @@
-.recent-sets { min-width: 0; margin: 20px 0; padding: 16px; border: 1px solid #e8d9dc; border-radius: 16px; background: #fff8f8; box-shadow: 0 4px 14px #19344c08; }
+.recent-sets { min-width: 0; margin: 20px 0; padding: 16px; border: 1px solid #d8e3ea; border-top: 4px solid #d73449; border-radius: 15px; background: #fff; box-shadow: 0 5px 0 #e2eaf0; }
 .recent-sets-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .recent-sets-heading h3 { margin: 0 0 3px; font-size: 17px; color: #17324d; }
 .recent-sets-heading > div > span { font-size: 11px; color: #718296; }
