@@ -71,10 +71,10 @@ body::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cg font-family='Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif' font-size='38' font-weight='700' fill='%234ea3cf' opacity='.42'%3E%3Ctext x='28' y='62'%3E⚡%3C/text%3E%3Ctext x='118' y='62'%3E💧%3C/text%3E%3Ctext x='28' y='150'%3E🔥%3C/text%3E%3Ctext x='118' y='150'%3E🌿%3C/text%3E%3Ctext x='170' y='110'%3E✨%3C/text%3E%3C/g%3E%3C/svg%3E");
+  background-image: url('/type-pattern-real.svg');
   background-repeat: repeat;
-  background-size: 220px 220px;
-  opacity: 1;
+  background-size: 520px 360px;
+  opacity: 0.62;
 }
 body > * {
   position: relative;
