@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { imageUrl, type CardBrief, type Language } from '../src/lib/models'
 import {
   addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists,
-  removeWishlistItem, renameWishlist, wishlistCardKey, wishlistErrorMessage, wishlistNameSchema,
+  removeWishlistItem, renameWishlist, updateWishlistItemTargetPrice, wishlistCardKey, wishlistErrorMessage, wishlistNameSchema,
   type Wishlist, type WishlistItem,
 } from '../src/lib/wishlists'
 
@@ -19,7 +19,7 @@ const listId = '33333333-3333-4333-8333-333333333333'
 const otherListId = '44444444-4444-4444-8444-444444444444'
 const card: CardBrief = { id: 'base1-1', name: 'Alakazam', localId: '1', image: 'https://assets.tcgdex.net/en/base/base1/1' }
 const list: Wishlist = { id: listId, user_id: alice, name: 'Favoritas', created_at: '2026-09-17T00:00:00+00:00' }
-const item: WishlistItem = { list_id: listId, user_id: alice, card_id: card.id, language: 'en', card_snapshot: card, created_at: list.created_at }
+const item: WishlistItem = { list_id: listId, user_id: alice, card_id: card.id, language: 'en', card_snapshot: card, target_price: null, created_at: list.created_at }
 type Result = { data: unknown; error: unknown }
 const results: (Result | Promise<Result>)[] = []
 function builder(table: string) {
@@ -40,6 +40,7 @@ const writes = [
   ['rename', (id: string, signal?: AbortSignal) => renameWishlist(id, listId, 'Favoritas', signal)],
   ['delete', (id: string, signal?: AbortSignal) => deleteWishlist(id, listId, signal)],
   ['add', (id: string, signal?: AbortSignal) => addWishlistItem(id, listId, card, 'en', signal)],
+  ['target price', (id: string, signal?: AbortSignal) => updateWishlistItemTargetPrice(id, listId, card.id, 'en', 12.5, signal)],
   ['remove', (id: string, signal?: AbortSignal) => removeWishlistItem(id, listId, card.id, 'en', signal)],
 ] as const
 
@@ -182,7 +183,7 @@ describe('Escrituras aisladas e identidad autenticada', () => {
     await addWishlistItem(alice, listId, detailed, 'en')
     await addWishlistItem(alice, listId, detailed, 'en')
     for (const q of queries) {
-      expect(q.upsert).toHaveBeenCalledWith({ list_id: listId, user_id: alice, card_id: card.id, language: 'en', card_snapshot: card }, { onConflict: 'list_id,card_id,language', ignoreDuplicates: true })
+      expect(q.upsert).toHaveBeenCalledWith({ list_id: listId, user_id: alice, card_id: card.id, language: 'en', card_snapshot: card, target_price: null }, { onConflict: 'list_id,card_id,language', ignoreDuplicates: true })
       expect(q.update).not.toHaveBeenCalled()
     }
     expect(detailed.quantity).toBe(10)
@@ -196,6 +197,13 @@ describe('Escrituras aisladas e identidad autenticada', () => {
     await removeWishlistItem(alice, listId, card.id, 'en')
     expect(queries[0].delete).toHaveBeenCalledOnce()
     expect(queries[0].eq.mock.calls).toEqual([['user_id', alice], ['list_id', listId], ['card_id', card.id], ['language', 'en']])
+  })
+  it('guarda y valida el precio objetivo de una carta', async () => {
+    results.push({ data: { list_id: listId }, error: null })
+    await updateWishlistItemTargetPrice(alice, listId, card.id, 'en', 12.5)
+    expect(queries[0].update).toHaveBeenCalledWith({ target_price: 12.5 })
+    expect(queries[0].eq.mock.calls).toEqual([['user_id', alice], ['list_id', listId], ['card_id', card.id], ['language', 'en']])
+    await expect(updateWishlistItemTargetPrice(alice, listId, card.id, 'en', -1)).rejects.toThrow('no son válidos')
   })
   it.each(writes)('%s comprueba getUser antes de escribir y propaga la señal', async (_name, write) => {
     results.push({ data: list, error: null })

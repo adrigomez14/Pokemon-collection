@@ -38,6 +38,12 @@
 .wishlist-button:disabled, .wishlist-name-input:disabled, .wishlist-list-button:disabled { opacity: .6; cursor: not-allowed; }
 .wishlist-button:focus-visible, .wishlist-name-input:focus-visible, .wishlist-list-button:focus-visible, .wishlist-card-open:focus-visible, .wishlist-option input:focus-visible { outline: 3px solid #087cb4; outline-offset: 3px; }
 .wishlist-status { padding: 12px 15px; border: 1px solid #c7dce7; border-radius: 10px; background: #edf6fa; color: #254d65; font-size: 13px; }
+.wishlist-alert-settings, .wishlist-price-alerts { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid #d8e3ea; border-radius: 12px; background: #fff; color: #19334b; }
+.wishlist-alert-settings p, .wishlist-price-alerts p { margin: 4px 0 0; color: #4d6478; font-size: 12px; }
+.wishlist-alert-settings label { flex-direction: row; align-items: center; gap: 8px; white-space: nowrap; color: #304b61; }
+.wishlist-alert-settings input { width: 17px; height: 17px; margin: 0; accent-color: #bd263c; }
+.wishlist-price-alerts { display: block; border-color: #a9d2b6; background: #f0faf3; color: #235e3c; }
+.wishlist-price-alerts strong { font-size: 13px; }
 .wishlist-error { display: grid; gap: 10px; padding: 14px; border: 1px solid #e0a5b1; border-radius: 10px; background: #fff2f5; color: #852035; font-size: 13px; }
 .wishlist-error p { margin: 0; }
 .wishlist-error .wishlist-button { justify-self: start; }
@@ -73,6 +79,10 @@
 .wishlist-card-open .card-image { max-width: 240px; align-self: center; }
 .wishlist-card-info { display: grid; gap: 4px; min-width: 0; }
 .wishlist-card-info span, .wishlist-card-info small { color: #4d6478; font-size: 12px; }
+.wishlist-target-price { display: flex; align-items: flex-end; gap: 8px; min-width: 0; margin-top: 10px; }
+.wishlist-target-price label { flex: 1; min-width: 0; color: #4d6478; font-size: 10px; }
+.wishlist-target-price input { min-height: 38px; padding: 8px 9px; font-size: 12px; }
+.wishlist-target-price .wishlist-button { min-height: 38px; padding: 8px 10px; font-size: 11px; }
 .wishlist-card-remove { width: 100%; margin-top: 10px; color: #a51f36; }
 
 @media (max-width: 700px) {
@@ -80,6 +90,8 @@
   .wishlist-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .wishlist-heading { padding: 20px; }
   .wishlist-heading-icon { display: none; }
+  .wishlist-alert-settings { align-items: flex-start; flex-direction: column; }
+  .wishlist-alert-settings label { white-space: normal; }
 }
 @media (max-width: 400px) {
   .wishlist-name-form, .wishlist-picker .wishlist-name-form, .wishlist-dialog .wishlist-name-form { padding: 12px; }

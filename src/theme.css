@@ -365,3 +365,17 @@ footer small, footer > a:last-child { color: #5c7283; }
 [data-theme="dark"] .collection-feature-value strong { color: #edf5fa; }
 [data-theme="dark"] .collection-feature-value .wishlist-button { background: #1a3040; border-color: #527184; color: #dce9ef; }
 [data-theme="dark"] .collection-feature-value .wishlist-button:hover:not(:disabled) { background: #244556; border-color: #6d94a5; color: #fff; }
+[data-theme="dark"] .wishlist-target-price label { color: #a9c0cb; }
+[data-theme="dark"] .wishlist-target-price input { background: #142532; border-color: #3b5667; color: #e4edf4; }
+[data-theme="dark"] .wishlist-target-price .wishlist-button { background: #1a3040; border-color: #527184; color: #dce9ef; }
+[data-theme="dark"] .wishlist-target-price .wishlist-button:hover:not(:disabled) { background: #244556; border-color: #6d94a5; color: #fff; }
+[data-theme="dark"] .wishlist-alert-settings { background: #142532; border-color: #314b5c; color: #e4edf4; }
+[data-theme="dark"] .wishlist-alert-settings p { color: #a9c0cb; }
+[data-theme="dark"] .wishlist-alert-settings label { color: #dce9ef; }
+[data-theme="dark"] .wishlist-alert-settings input { background: #142532; }
+[data-theme="dark"] .wishlist-price-alerts { background: #173b2d; border-color: #3f8064; color: #c4f1d4; }
+[data-theme="dark"] .wishlist-price-alerts p { color: #a9e1b9; }
+[data-theme="dark"] .wishlist-list-heading .wishlist-button:not(.wishlist-button-danger), [data-theme="dark"] .wishlist-actions .wishlist-button:not(.wishlist-button-danger) { background: #1a3040; border-color: #527184; color: #dce9ef; }
+[data-theme="dark"] .wishlist-list-heading .wishlist-button:not(.wishlist-button-danger):hover:not(:disabled), [data-theme="dark"] .wishlist-actions .wishlist-button:not(.wishlist-button-danger):hover:not(:disabled) { background: #244556; border-color: #6d94a5; color: #fff; }
+[data-theme="dark"] .market-box strong, [data-theme="dark"] .market-box a, [data-theme="dark"] .market-low a { color: #79d7ee; }
+[data-theme="dark"] .market-box > a { color: #8ed9e9; }

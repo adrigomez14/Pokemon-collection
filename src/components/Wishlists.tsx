@@ -1,11 +1,12 @@
-import { createContext, useCallback, useContext, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExternalLink, Heart, LockKeyhole, Plus, Trash2, ArrowRight, ShieldCheck, Sparkles, BookOpen } from 'lucide-react'
-import { languages, type CardBrief, type Language } from '../lib/models'
+import { Download, ExternalLink, Heart, LockKeyhole, Plus, Trash2, ArrowRight, ShieldCheck, Sparkles, BookOpen } from 'lucide-react'
+import { cardmarketUrl, languages, type CardBrief, type Language } from '../lib/models'
 import {
-  addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists, removeWishlistItem,
-  renameWishlist, wishlistCardKey, wishlistErrorMessage, wishlistNameSchema,
-  type Wishlist, type WishlistData, type WishlistItem,
+  addWishlistItem, createWishlist, deleteWishlist, isCardWished, loadWishlists, removeWishlistItem, updateWishlistItemTargetPrice,
+  loadPriceAlertEmailPreference, loadWishlistPriceAlerts, renameWishlist, updatePriceAlertEmailPreference,
+  wishlistCardKey, wishlistErrorMessage, wishlistNameSchema,
+  type Wishlist, type WishlistData, type WishlistItem, type WishlistPriceAlert,
 } from '../lib/wishlists'
 import { CardImage } from './CardImage'
 import { Modal } from './Modal'
@@ -253,6 +254,76 @@ export function WishlistPage(props: PageProps) {
   return <WishlistPageScope key={userId ?? 'anonymous'} {...props} />
 }
 
+function csvCell(value: string) {
+  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value
+  return `"${safe.replaceAll('"', '""')}"`
+}
+
+function exportWishlist(name: string, items: WishlistItem[]) {
+  const header = ['Carta', 'Expansion', 'Idioma', 'Precio objetivo', 'Enlace Cardmarket']
+  const rows = items.map((item) => [
+    item.card_snapshot.name,
+    item.card_snapshot.id.split('-')[0] ?? item.card_snapshot.id,
+    languages[item.language],
+    item.target_price === null ? '' : item.target_price.toFixed(2),
+    cardmarketUrl(item.card_snapshot, item.language),
+  ])
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(';')).join('\r\n')
+  const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${name.replace(/[^a-z0-9áéíóúüñ]+/gi, '-').replace(/^-|-$/g, '') || 'lista-de-deseos'}.csv`
+  document.body.appendChild(link); link.click(); link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+function WishlistTargetPrice({ item, canWrite, pending, onSave }: {
+  item: WishlistItem; canWrite: boolean; pending: boolean; onSave: (value: number | null) => Promise<boolean>
+}) {
+  const [value, setValue] = useState(item.target_price === null ? '' : String(item.target_price))
+  useEffect(() => setValue(item.target_price === null ? '' : String(item.target_price)), [item.target_price])
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    const parsed = value.trim() === '' ? null : Number(value)
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0 || parsed > 9999999)) return
+    await onSave(parsed)
+  }
+  return <form className="wishlist-target-price" onSubmit={(event) => { void submit(event) }}>
+    <label>Precio objetivo (€)<input type="number" min="0" max="9999999" step="0.01" placeholder="Sin objetivo" value={value} disabled={!canWrite || pending} onChange={(event) => setValue(event.target.value)} /></label>
+    <button type="submit" className="wishlist-button" disabled={!canWrite || pending}>Guardar</button>
+  </form>
+}
+
+function WishlistPriceAlerts({ userId, items }: { userId: string; items: WishlistItem[] }) {
+  const alerts = useQuery({ queryKey: ['wishlist-price-alerts', userId], queryFn: ({ signal }) => loadWishlistPriceAlerts(userId, signal), staleTime: 60000 })
+  if (!alerts.data?.length) return null
+  return <div className="wishlist-price-alerts" role="status">
+    <strong>Precios objetivo alcanzados</strong>
+    {alerts.data.map((alert: WishlistPriceAlert) => {
+      const item = items.find((candidate) => candidate.card_id === alert.card_id && candidate.language === alert.language)
+      return <p key={alert.id}>{item?.card_snapshot.name ?? alert.card_id}: {alert.observed_price.toFixed(2)} € (objetivo {alert.target_price.toFixed(2)} €).</p>
+    })}
+  </div>
+}
+
+function PriceAlertSettings({ userId }: { userId: string }) {
+  const queryClient = useQueryClient()
+  const preference = useQuery({ queryKey: ['price-alert-email', userId], queryFn: ({ signal }) => loadPriceAlertEmailPreference(userId, signal), staleTime: 60000 })
+  const [pending, setPending] = useState(false)
+  async function changePreference(enabled: boolean) {
+    setPending(true)
+    try {
+      await updatePriceAlertEmailPreference(userId, enabled)
+      queryClient.setQueryData(['price-alert-email', userId], enabled)
+    } finally { setPending(false) }
+  }
+  return <div className="wishlist-alert-settings">
+    <div><strong>Avisos de precio</strong><p>Revisamos tus objetivos cada hora y te avisamos dentro de la lista cuando una carta los alcanza.</p></div>
+    <label><input type="checkbox" checked={preference.data === true} disabled={pending || preference.isPending || preference.isError} onChange={(event) => { void changePreference(event.target.checked) }} /> Enviarme también un correo</label>
+  </div>
+}
+
 function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) {
   const { userId, data, error, fetching, pending, canWrite, run, retry } = useWishlists()
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -344,7 +415,9 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
         <button type="button" className="wishlist-button wishlist-button-primary" onClick={onAuth}>Iniciar sesión</button>
       </div> : <>
         <WishlistStatus />
+        <PriceAlertSettings userId={userId} />
         {data && <>
+          <WishlistPriceAlerts userId={userId} items={data.items} />
           <WishlistNameForm onSave={(name) => run((owner, signal) => createWishlist(owner, name, signal))} />
           {!data.lists.length ? !error && <div className="wishlist-empty"><h2>Aún no tienes listas</h2><p>Crea tu primera lista privada. Después añade cartas con el corazón del catálogo.</p></div> :
             <div className="wishlist-layout">
@@ -362,6 +435,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
               {selected && <section className="wishlist-content" aria-label={`Lista ${selected.name}`}>
                 <div className="wishlist-list-heading"><div><h2>{selected.name}</h2><p>{items?.length} cartas · Lista privada</p></div>
                   <div className="wishlist-actions">
+                    <button type="button" className="wishlist-button" disabled={!items?.length} onClick={() => exportWishlist(selected.name, items ?? [])}><Download size={15} />Exportar compra</button>
                     <button type="button" className="wishlist-button" disabled={!canWrite} onClick={() => setDialog({ kind: 'rename', list: selected })}>Renombrar</button>
                     <button type="button" className="wishlist-button wishlist-button-danger" disabled={!canWrite} onClick={() => setDialog({ kind: 'delete', list: selected })}>Eliminar lista</button>
                   </div>
@@ -403,6 +477,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
                       <CardImage card={item.card_snapshot} />
                       <span className="wishlist-card-info"><strong>{item.card_snapshot.name}</strong><span>{languages[item.language]}</span><small>N.º {item.card_snapshot.localId}</small></span>
                     </button>
+                    <WishlistTargetPrice item={item} canWrite={canWrite} pending={pending} onSave={(targetPrice) => save((owner, signal) => updateWishlistItemTargetPrice(owner, selected.id, item.card_id, item.language, targetPrice, signal))} />
                     <button type="button" className="wishlist-button wishlist-card-remove" disabled={!canWrite}
                       aria-label={`Quitar ${item.card_snapshot.name} en ${languages[item.language]} de ${selected.name}`}
                       onClick={() => setDialog({ kind: 'remove', list: selected, item })}><Trash2 size={16} aria-hidden="true" />Quitar de esta lista</button>
