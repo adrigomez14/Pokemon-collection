@@ -56,6 +56,19 @@ function CollectionApp() {
     localStorage.setItem('pokefolio-theme', darkMode ? 'dark' : 'light')
   }, [darkMode])
 
+  function applyAccountTheme(nextUser: User | null) {
+    const savedTheme = nextUser?.user_metadata?.theme
+    if (savedTheme === 'dark' || savedTheme === 'light') setDarkMode(savedTheme === 'dark')
+  }
+
+  async function toggleDarkMode() {
+    const nextDarkMode = !darkMode
+    setDarkMode(nextDarkMode)
+    if (!user || !supabase) return
+    const { error } = await supabase.auth.updateUser({ data: { theme: nextDarkMode ? 'dark' : 'light' } })
+    if (error) setNotice({ text: 'El tema se ha aplicado, pero no se pudo guardar en tu cuenta.', error: true })
+  }
+
   useEffect(() => {
     if (!supabase) return
     let alive = true
@@ -76,6 +89,7 @@ function CollectionApp() {
       }
       activeUser.current = nextId
       setUser(session?.user ?? null); setAuthLoading(false)
+      applyAccountTheme(session?.user ?? null)
       if (event === 'PASSWORD_RECOVERY') { setRecovery(true); setAuthOpen(true) }
     })
     void supabase.auth.getSession().then(({ data, error }) => {
@@ -87,6 +101,7 @@ function CollectionApp() {
       }
       activeUser.current = data.session?.user.id ?? null
       setUser(data.session?.user ?? null); setAuthLoading(false)
+      applyAccountTheme(data.session?.user ?? null)
     })
     return () => { alive = false; subscription.unsubscribe() }
   }, [queryClient])
@@ -234,7 +249,7 @@ function CollectionApp() {
             <button className={view === 'contact' ? 'nav-item active' : 'nav-item'} aria-current={view === 'contact' ? 'page' : undefined} onClick={() => setView('contact')}><Mail size={17} />Contacto</button>
           </nav>
           <div className="account">
-            <button className="icon-button theme-toggle" aria-label={darkMode ? 'Activar modo claro' : 'Activar modo nocturno'} aria-pressed={darkMode} onClick={() => setDarkMode((current) => !current)}><span aria-hidden="true">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</span></button>
+            <button className="icon-button theme-toggle" aria-label={darkMode ? 'Activar modo claro' : 'Activar modo nocturno'} aria-pressed={darkMode} onClick={() => void toggleDarkMode()}><span aria-hidden="true">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</span></button>
             {user ? (
               <>
                 <span className="account-email" title={user.email}>{user.email}</span>

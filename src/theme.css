@@ -313,6 +313,7 @@ footer small, footer > a:last-child { color: #5c7283; }
 
 [data-theme="dark"] {
   color-scheme: dark;
+  background-color: #0d1823;
 }
 [data-theme="dark"] body { background-color: #0d1823; color: #e4edf4; }
 [data-theme="dark"] .header { background: #101e2bed; border-bottom-color: #294052; }
@@ -342,3 +343,14 @@ footer small, footer > a:last-child { color: #5c7283; }
 [data-theme="dark"] .empty-state, [data-theme="dark"] .wishlist-empty { background: #142532; border-color: #456376; color: #afc2cc; }
 [data-theme="dark"] .empty-state h3, [data-theme="dark"] .wishlist-empty h2, [data-theme="dark"] .wishlist-empty h3 { color: #edf5fa; }
 [data-theme="dark"] .privacy-page a, [data-theme="dark"] footer a { color: #8ed9e9; }
+[data-theme="dark"] .set-progress progress::-webkit-progress-bar { background: #4a2c38; }
+[data-theme="dark"] .set-progress progress::-webkit-progress-value { background: linear-gradient(90deg, #bd263c, #e04758); }
+[data-theme="dark"] .set-progress progress::-moz-progress-bar { background: #bd263c; }
+[data-theme="dark"] .collection-coverage progress::-webkit-progress-bar { background: #3a3f42; }
+[data-theme="dark"] .collection-coverage progress::-webkit-progress-value { background: #ffda54; }
+[data-theme="dark"] .collection-coverage progress::-moz-progress-bar { background: #ffda54; }
+[data-theme="dark"] .cardmarket-referral-banner { background: #142532 !important; border-color: #314b5c !important; color: #e4edf4; }
+[data-theme="dark"] .cardmarket-referral-banner p { color: #a9c0cb !important; }
+[data-theme="dark"] .cardmarket-referral-banner code { color: #ffd96a; }
+[data-theme="dark"] .cardmarket-referral-banner .wishlist-button { background: #1a3040 !important; border-color: #527184 !important; color: #e4edf4 !important; }
+[data-theme="dark"] footer { background: #0d1823; }
