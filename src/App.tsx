@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { User } from '@supabase/supabase-js'
-import { ArrowDownToLine, ArrowUpFromLine, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Heart, Layers3, List, LogOut, Mail, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, TrendingUp, UserRound } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Heart, Layers3, List, LogOut, Mail, Moon, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, Sun, TrendingUp, UserRound } from 'lucide-react'
 import { AuthModal } from './components/AuthModal'
 import { AccountModal } from './components/AccountModal'
 import { PrivacyPage } from './components/PrivacyPage'
@@ -44,11 +44,17 @@ function CollectionApp() {
   const [sort, setSort] = useState('recent')
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('pokefolio-theme') === 'dark')
   const [exportingExcel, setExportingExcel] = useState(false)
   const [backup, setBackup] = useState<EntryInput[] | null>(null)
   const [exportParts, setExportParts] = useState<string[] | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const activeUser = useRef<string | null>(null)
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+    localStorage.setItem('pokefolio-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   useEffect(() => {
     if (!supabase) return
@@ -228,6 +234,7 @@ function CollectionApp() {
             <button className={view === 'contact' ? 'nav-item active' : 'nav-item'} aria-current={view === 'contact' ? 'page' : undefined} onClick={() => setView('contact')}><Mail size={17} />Contacto</button>
           </nav>
           <div className="account">
+            <button className="icon-button theme-toggle" aria-label={darkMode ? 'Activar modo claro' : 'Activar modo nocturno'} aria-pressed={darkMode} onClick={() => setDarkMode((current) => !current)}><span aria-hidden="true">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</span></button>
             {user ? (
               <>
                 <span className="account-email" title={user.email}>{user.email}</span>
