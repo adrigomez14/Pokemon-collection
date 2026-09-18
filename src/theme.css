@@ -1,16 +1,18 @@
 /* Álbum físico, progreso y gestión de cuenta. */
-.set-progress { margin: 18px 0; padding: 22px; border: 1px solid #cadce6; border-radius: 16px; background: #f3f8fb; color: #19334b; }
+.set-progress { margin: 18px 0; padding: 22px; border: 1px solid #e8d9dc; border-radius: 16px; background: #fff8f8; color: #19334b; box-shadow: 0 4px 14px #19344c08; }
 .set-progress-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .set-progress-heading h3 { margin: 4px 0 12px; font-size: 20px; }
-.set-progress-heading > strong { color: #17324d; font-size: 30px; }
+.set-progress-heading > strong { color: #bd263c; font-size: 30px; }
 .set-progress progress { display: block; width: 100%; height: 14px; border: 0; border-radius: 10px; overflow: hidden; accent-color: #bd263c; }
-.set-progress progress::-webkit-progress-bar { background: #d8e5eb; border-radius: 10px; }
-.set-progress progress::-webkit-progress-value { background: #bd263c; border-radius: 10px; }
+.set-progress progress::-webkit-progress-bar { background: #f1dfe2; border-radius: 10px; }
+.set-progress progress::-webkit-progress-value { background: linear-gradient(90deg, #bd263c, #d83446); border-radius: 10px; }
 .set-progress progress::-moz-progress-bar { background: #bd263c; border-radius: 10px; }
-.set-progress small, .duplicates-panel small { display: block; line-height: 1.6; color: #4d6478; }
+.set-progress small, .duplicates-panel small { display: block; line-height: 1.6; color: #718296; }
 .ownership-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
 .ownership-filters button { min-height: 42px; }
-.ownership-filters button[aria-pressed="true"] { background: #17324d; border-color: #17324d; color: white; }
+.ownership-filters button[aria-pressed="true"] { background: #bd263c; border-color: #bd263c; color: white; box-shadow: 0 3px 0 #861c30; }
+.ownership-filters button:hover:not(:disabled) { background: #fcebed; border-color: #dcaab2; color: #ad2438; }
+.ownership-filters button[aria-pressed="true"]:hover:not(:disabled) { background: #a71e33; border-color: #a71e33; color: white; }
 .collection-filters { display: grid; grid-template-columns: minmax(180px, 2fr) repeat(4, minmax(125px, 1fr)); gap: 12px; }
 .collection-filters label, .collection-filters select { min-width: 0; }
 .duplicates-panel { border: 1px solid #d8e3ea; border-radius: 16px; padding: 22px; background: white; }
