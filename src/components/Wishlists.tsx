@@ -319,7 +319,7 @@ function PriceAlertSettings({ userId }: { userId: string }) {
     } finally { setPending(false) }
   }
   return <div className="wishlist-alert-settings">
-    <div><strong>Avisos de precio</strong><p>Revisamos tus objetivos una vez al día y te avisamos dentro de la lista cuando una carta alcanza tu precio.</p><p className="wishlist-alert-schedule">En el plan actual, el aviso puede tardar hasta 24 horas desde que cambia el precio.</p></div>
+    <div><strong>Avisos de precio</strong><p>Añade un precio objetivo a las cartas que quieras seguir. Cuando una carta alcance ese importe, recibirás siempre una notificación dentro de Pokéfolio.</p><p className="wishlist-alert-schedule">La comprobación se realiza una vez al día en el plan actual, por lo que el aviso puede tardar hasta 24 horas.</p></div>
     <label><input type="checkbox" checked={preference.data === true} disabled={pending || preference.isPending || preference.isError} onChange={(event) => { void changePreference(event.target.checked) }} /> Enviarme también un correo</label>
   </div>
 }
@@ -415,7 +415,6 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
         <button type="button" className="wishlist-button wishlist-button-primary" onClick={onAuth}>Iniciar sesión</button>
       </div> : <>
         <WishlistStatus />
-        <PriceAlertSettings userId={userId} />
         {data && <>
           <WishlistPriceAlerts userId={userId} items={data.items} />
           <WishlistNameForm onSave={(name) => run((owner, signal) => createWishlist(owner, name, signal))} />
@@ -469,6 +468,8 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
                     Ir a Cardmarket <ExternalLink size={14} />
                   </a>
                 </div>
+
+                <PriceAlertSettings userId={userId} />
 
                 {items?.length === 0 ? !error && <div className="wishlist-empty"><h3>Esta lista aún no tiene cartas</h3><p>Abre el corazón de una carta del catálogo y marca esta lista.</p></div> :
                   <ul className="wishlist-cards">{items?.map((item) => <li className="wishlist-card" key={wishlistCardKey(item.card_id, item.language)}>

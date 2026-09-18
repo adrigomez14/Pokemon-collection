@@ -144,6 +144,17 @@ export async function updatePriceAlertEmailPreference(userId: string, enabled: b
   if (error) throw new WishlistError(wishlistErrorMessage(error))
 }
 
+export async function markWishlistPriceAlertsRead(userId: string, signal?: AbortSignal): Promise<void> {
+  return safely(signal, async () => {
+    const client = await writeClient(userId, signal)
+    let query = client.from('wishlist_price_alerts').update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId).is('read_at', null)
+    if (signal) query = query.abortSignal(signal)
+    const { error } = await abortable(query, signal)
+    if (error) throw error
+  })
+}
+
 export async function createWishlist(userId: string, name: string, signal?: AbortSignal): Promise<Wishlist> {
   return safely(signal, async () => {
     const parsedName = wishlistNameSchema.parse(name)

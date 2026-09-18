@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { User } from '@supabase/supabase-js'
-import { ArrowDownToLine, ArrowUpFromLine, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Heart, Layers3, List, LogOut, Mail, Moon, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, Sun, TrendingUp, UserRound } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, Bell, BookOpen, ChevronLeft, ChevronRight, CircleHelp, ExternalLink, FileSpreadsheet, Grid2X2, Heart, Layers3, List, LogOut, Mail, Moon, Plus, RefreshCw, Search as SearchIcon, ShieldCheck, Sun, TrendingUp, UserRound } from 'lucide-react'
 import { AuthModal } from './components/AuthModal'
 import { AccountModal } from './components/AccountModal'
 import { PrivacyPage } from './components/PrivacyPage'
@@ -17,6 +17,7 @@ import { TrainerHero } from './components/TrainerHero'
 import { WishlistHeart, WishlistPage, WishlistProvider } from './components/Wishlists'
 import { getCard, LATEST_SET, PAGE_SIZE, searchCards, type Search } from './lib/catalog'
 import { addEntry, importEntries, loadCollection, removeEntry, updateEntry, updateSnapshot } from './lib/collection'
+import { loadWishlistPriceAlerts, markWishlistPriceAlertsRead, type WishlistPriceAlert } from './lib/wishlists'
 import { cardmarketUrl, collectionStats, createBackupParts, entryValue, euros, formatDate, languages, marketQuote, parseBackup, variants, type Entry, type EntryInput, type Language } from './lib/models'
 import { supabase } from './lib/supabase'
 import { ownedCardIds } from './lib/progress'
@@ -45,6 +46,7 @@ function CollectionApp() {
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const [darkMode, setDarkMode] = useState(() => typeof window !== 'undefined' && localStorage.getItem('pokefolio-theme') === 'dark')
+    const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [exportingExcel, setExportingExcel] = useState(false)
   const [backup, setBackup] = useState<EntryInput[] | null>(null)
   const [exportParts, setExportParts] = useState<string[] | null>(null)
@@ -107,6 +109,14 @@ function CollectionApp() {
   }, [queryClient])
 
   const collection = useQuery({ queryKey: ['collection', user?.id], queryFn: ({ signal }) => loadCollection(user!.id, signal), enabled: Boolean(user), staleTime: 15000 })
+    const notifications = useQuery({ queryKey: ['wishlist-price-alerts', user?.id], queryFn: ({ signal }) => loadWishlistPriceAlerts(user!.id, signal), enabled: Boolean(user), staleTime: 60000 })
+
+    async function markNotificationsRead() {
+      if (!user || !notifications.data?.length) return
+      await markWishlistPriceAlertsRead(user.id)
+      setNotificationsOpen(false)
+      await queryClient.invalidateQueries({ queryKey: ['wishlist-price-alerts', user.id] })
+    }
   const entries = user ? collection.data ?? [] : []
   const owned = ownedCardIds(entries, language)
   const byOwnership = search.ownership === 'missing' || search.ownership === 'owned'
@@ -249,6 +259,16 @@ function CollectionApp() {
             <button className={view === 'contact' ? 'nav-item active' : 'nav-item'} aria-current={view === 'contact' ? 'page' : undefined} onClick={() => setView('contact')}><Mail size={17} />Contacto</button>
           </nav>
           <div className="account">
+            {user && <div className="notification-control">
+              <button className="icon-button notification-toggle" aria-label={`Notificaciones${notifications.data?.length ? ` (${notifications.data.length} nuevas)` : ''}`} aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((current) => !current)}><Bell size={18} />{notifications.data?.length ? <span className="notification-count">{notifications.data.length > 9 ? '9+' : notifications.data.length}</span> : null}</button>
+              {notificationsOpen && <div className="notification-popover" role="dialog" aria-label="Notificaciones de precios">
+                <strong>Notificaciones</strong>
+                {!notifications.data?.length ? <p>No tienes avisos nuevos.</p> : <>
+                  {notifications.data.map((alert: WishlistPriceAlert) => <p key={alert.id}><strong>{alert.card_id}</strong> ha alcanzado {alert.observed_price.toFixed(2)} € (objetivo {alert.target_price.toFixed(2)} €).</p>)}
+                  <button className="text-button" onClick={() => void markNotificationsRead()}>Marcar como leídas</button>
+                </>}
+              </div>}
+            </div>}
             <button className="icon-button theme-toggle" aria-label={darkMode ? 'Activar modo claro' : 'Activar modo nocturno'} aria-pressed={darkMode} onClick={() => void toggleDarkMode()}><span aria-hidden="true">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</span></button>
             {user ? (
               <>

@@ -94,6 +94,13 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .nav-item.active { color: #ad2438; background: #fcebed; }
 .nav-item.active::after { content: ''; width: 5px; height: 5px; background: #c62d43; border-radius: 50%; }
 .account-button { color: #17324d; border-color: #b9c9d6; }
+.notification-control { position: relative; }
+.notification-toggle { position: relative; color: #526779; }
+.notification-count { position: absolute; top: 1px; right: 1px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: #bd263c; color: #fff; font-size: 9px; line-height: 15px; text-align: center; }
+.notification-popover { position: absolute; top: calc(100% + 10px); right: 0; z-index: 20; width: 300px; max-width: min(300px, calc(100vw - 32px)); padding: 14px; border: 1px solid #d8e3ea; border-radius: 12px; background: #fff; color: #19334b; box-shadow: 0 12px 30px #17324d24; }
+.notification-popover > strong { display: block; margin-bottom: 8px; }
+.notification-popover p { margin: 8px 0; color: #4d6478; font-size: 12px; line-height: 1.5; }
+.notification-popover .text-button { margin-top: 4px; }
 .main { padding-top: 30px; }
 .trainer-hero { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 25px; padding: 42px; min-height: 390px; border: 1px solid #17374f; border-radius: 24px; background: radial-gradient(ellipse at 90% 40%, #275678 0, transparent 50%), linear-gradient(120deg, #102639, #183f59); box-shadow: 0 12px 30px #14364c13; }
 .trainer-hero::before { content: ''; position: absolute; left: -15px; top: 36px; width: 6px; height: 140px; background: #ffce47; border-radius: 6px; transform: rotate(12deg); box-shadow: 20px 0 #ffce47; }
@@ -324,6 +331,9 @@ footer small, footer > a:last-child { color: #5c7283; }
 [data-theme="dark"] .account-button, [data-theme="dark"] button:not(.primary):not(.button.primary) { background: #162735; border-color: #3b5667; }
 [data-theme="dark"] button:hover:not(:disabled) { background: #203847; border-color: #587385; }
 [data-theme="dark"] .theme-toggle { color: #ffdb70; }
+[data-theme="dark"] .notification-toggle { color: #b8d2df; }
+[data-theme="dark"] .notification-popover { background: #142532; border-color: #3b5667; color: #edf5fa; box-shadow: 0 12px 30px #0008; }
+[data-theme="dark"] .notification-popover p { color: #a9c0cb; }
 [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea { background: #142532; border-color: #3b5667; color: #e4edf4; }
 [data-theme="dark"] input::placeholder, [data-theme="dark"] textarea::placeholder { color: #8299a8; }
 [data-theme="dark"] label, [data-theme="dark"] .language-label, [data-theme="dark"] .catalog-meta, [data-theme="dark"] .search-hint { color: #a8bbc7; }
