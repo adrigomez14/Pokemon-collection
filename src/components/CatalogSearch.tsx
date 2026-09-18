@@ -1,15 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Search as SearchIcon, SlidersHorizontal } from 'lucide-react'
-import { catalogSort, clearRarityCache, getFilterValues, getSets, LATEST_SET, sortOptions, type FilterField, type Search } from '../lib/catalog'
+import { useQuery } from '@tanstack/react-query'
+import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react'
+import { catalogSort, getFilterValues, getSets, LATEST_SET, sortOptions, type FilterField, type Search } from '../lib/catalog'
 import type { Language } from '../lib/models'
 import { RecentSets } from './RecentSets'
 
 export function CatalogSearch({ language, search, onSearch }: { language: Language; search: Search; onSearch: (search: Search) => void }) {
-  const client = useQueryClient()
   const [draft, setDraft] = useState<Search>(search)
   const [advanced, setAdvanced] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
   const [mobileExpanded, setMobileExpanded] = useState(false)
   const sets = useQuery({
     queryKey: ['sets', language], queryFn: ({ signal }) => getSets(language, signal),
@@ -30,20 +28,6 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
   function selectSet(value: string) {
     apply({ ...draft, name: '', set: value, number: '', ownership: 'all', sort: !value && draft.sort === 'rarity-desc' ? undefined : draft.sort })
   }
-  async function refresh() {
-    setRefreshing(true)
-    clearRarityCache(language)
-    try {
-      await Promise.all([
-        sets.refetch(),
-        client.invalidateQueries({ queryKey: ['catalog', language] }),
-        client.invalidateQueries({ queryKey: ['catalog-filters', language] }),
-        client.invalidateQueries({ queryKey: ['set-catalog', language] }),
-        client.invalidateQueries({ queryKey: ['recent-sets', language] }),
-      ])
-    } finally { setRefreshing(false) }
-  }
-
   return <>
     <form className={`search-panel advanced-search${mobileExpanded ? ' mobile-expanded' : ''}`} onSubmit={submit}>
       <div className="search-fields">
@@ -58,7 +42,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
         <label className="mobile-extra">Número<input aria-label="Número de carta" name="number" placeholder="Ej. 025, 200" value={draft.number} onChange={(e) => change('number', e.target.value)} maxLength={50} pattern="[a-zA-Z0-9\-]+" title="Número o código exacto, conservando ceros iniciales; sin barras ni comodines." /></label>
         <button className="primary search-submit" type="submit"><SearchIcon size={16} />Buscar cartas</button>
       </div>
-      <div className="search-quick-actions"><button className="mobile-filter-toggle" type="button" aria-expanded={mobileExpanded} onClick={() => setMobileExpanded(!mobileExpanded)}><SlidersHorizontal size={16} />{mobileExpanded ? 'Ocultar filtros' : 'Más filtros'}{(draft.category || draft.number || draft.rarity || draft.type || draft.exactName || draft.imageOnly) && <span className="filter-dot" aria-label="Hay filtros seleccionados" />}</button><button type="button" aria-label="Refrescar catálogo" title="Refrescar catálogo" disabled={refreshing || sets.isFetching} onClick={() => void refresh()}><RefreshCw size={16} className={refreshing || sets.isFetching ? 'spin' : ''} />Refrescar</button></div>
+      <div className="search-quick-actions"><button className="mobile-filter-toggle" type="button" aria-expanded={mobileExpanded} onClick={() => setMobileExpanded(!mobileExpanded)}><SlidersHorizontal size={16} />{mobileExpanded ? 'Ocultar filtros' : 'Más filtros'}{(draft.category || draft.number || draft.rarity || draft.type || draft.exactName || draft.imageOnly) && <span className="filter-dot" aria-label="Hay filtros seleccionados" />}</button></div>
       <div className="search-checks mobile-extra"><label className="check-label"><input type="checkbox" checked={draft.exactName ?? false} onChange={(e) => change('exactName', e.target.checked)} />Nombre exacto</label><label className="check-label"><input type="checkbox" checked={draft.imageOnly ?? false} onChange={(e) => change('imageOnly', e.target.checked)} />Sólo con imagen</label></div>
       {draft.exactName && <p className="search-hint">El nombre exacto distingue mayúsculas y minúsculas según TCGdex.</p>}
       {draft.set === LATEST_SET && <p className="search-hint">Novedades: expansión física más reciente por fecha de lanzamiento en TCGdex para este idioma. Pokémon TCG Pocket queda excluido.</p>}
@@ -72,7 +56,7 @@ export function CatalogSearch({ language, search, onSearch }: { language: Langua
       </details>
       <div className="search-bottom"><label>Ordenar por<select aria-label="Ordenar por" value={catalogSort(draft)} onChange={(e) => apply({ ...draft, sort: e.target.value as Search['sort'] })}>{Object.entries(sortOptions).map(([key, label]) => <option key={key} value={key} disabled={key === 'rarity-desc' && !draft.set}>{label}</option>)}</select></label><button type="button" className="text-button" onClick={() => apply({ name: '', set: '', number: '', page: 1 })}>Limpiar filtros</button></div>
       {catalogSort(draft) === 'rarity-desc' && <p className="search-hint">Rarezas especiales primero y comunes al final. Dentro de cada nivel, número descendente. Las categorías sin equivalencia se agrupan aparte; este orden no indica el precio.</p>}
-      {sets.isError && <p className="search-hint" role="alert">No se pudo actualizar la lista de expansiones. Pulsa «Refrescar» para reintentar.</p>}
+      {sets.isError && <p className="search-hint" role="alert">No se pudo actualizar la lista de expansiones. Se volverá a intentar automáticamente.</p>}
     </form>
     <RecentSets language={language} selectedSet={search.set} onSelect={(set) => apply({ name: '', set, number: '', page: 1, ownership: 'all', sort: set ? 'rarity-desc' : 'catalog' })} />
   </>
@@ -84,5 +68,5 @@ function CatalogFilter({ language, field, label, value, onChange }: { language: 
     <option value="">Todas las opciones</option>
     {value && !values.data?.includes(value) && <option value={value}>{value}</option>}
     {values.data?.map((item) => <option key={item} value={item}>{item}</option>)}
-  </select>{values.isError && <small>No se pudieron cargar las opciones. Usa «Refrescar» para reintentar.</small>}</label>
+  </select>{values.isError && <small>No se pudieron cargar las opciones. Se volverá a intentar automáticamente.</small>}</label>
 }
