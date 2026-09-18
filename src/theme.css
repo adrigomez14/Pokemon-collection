@@ -64,10 +64,9 @@
 body {
   position: relative;
   background-color: #f4f7f9;
-  background-image: url('/type-icons/fire.png'), url('/type-icons/water.png'), url('/type-icons/grass.png'), url('/type-icons/electric.png'), url('/type-icons/psychic.png'), url('/type-icons/dragon.png'), url('/type-icons/ice.png'), url('/type-icons/fairy.png'), url('/type-icons/ghost.png'), url('/type-icons/fighting.png'), url('/type-icons/poison.png'), url('/type-icons/rock.png');
-  background-repeat: no-repeat;
-  background-size: 44px 13px;
-  background-position: 3% 18%, 3% 38%, 3% 58%, 3% 78%, 97% 25%, 97% 45%, 97% 65%, 97% 85%, 3% 92%, 97% 8%, 3% 8%, 97% 95%;
+  background-image: url('/type-circle-pattern.svg');
+  background-repeat: repeat;
+  background-size: 420px 300px;
 }
 body::before {
   content: none;
