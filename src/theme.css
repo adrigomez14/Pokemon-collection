@@ -61,7 +61,12 @@
   color: #19334b;
   background: #f4f7f9;
 }
-body { background-image: radial-gradient(#c9d8e2 0.8px, transparent 0.8px); background-size: 22px 22px; }
+body {
+  background-color: #f4f7f9;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 9C7 7 8 4 11 4c2 0 4 2 4 5 0 3-2 5-4 8-2-3-4-5-4-8Zm14 0c0-2 1-5 4-5 3 0 5 2 5 5 0 3-2 5-4 8-2-3-5-5-5-8Zm-11 15c0-3 2-5 5-5s5 2 5 5-2 5-5 5-5-2-5-5Zm13 0c0-3 2-5 5-5s5 2 5 5-2 5-5 5-5-2-5-5Z' fill='%23d8eaf6'/%3E%3Cpath d='M11 9L7 16h5l-3 9 9-12h-5l4-13-10 12Z' fill='%23f3d65a' opacity='.55'/%3E%3Cpath d='M20 6c3 0 5 2 5 5 0 2-1 4-3 6-2-2-4-4-4-6 0-2 1-5 2-5Zm-8 15c2 0 4 2 4 4 0 2-2 4-4 4s-4-2-4-4c0-2 2-4 4-4Zm14 0c2 0 4 2 4 4 0 2-2 4-4 4s-4-2-4-4c0-2 2-4 4-4Z' fill='%2364c8ff' opacity='.55'/%3E%3Cpath d='M8 25c2-5 6-7 10-7 6 0 9 4 9 9H8Z' fill='%2379d38c' opacity='.5'/%3E%3Cpath d='M22 12l-2 2 2 2 2-2-2-2Zm-10 6l-2 2 2 2 2-2-2-2Z' fill='%23de7ebd' opacity='.5'/%3E%3Ccircle cx='17' cy='17' r='2.5' fill='%23ff9d6b' opacity='.55'/%3E%3C/svg%3E");
+  background-size: 32px 32px;
+  background-attachment: fixed;
+}
 button { color: #304b61; border-radius: 11px; }
 button:hover:not(:disabled) { background: #edf4f8; border-color: #aebfcd; }
 button:disabled { opacity: .6; }
