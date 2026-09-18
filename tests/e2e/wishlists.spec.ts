@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
-import { card, entry } from '../fixtures'
+import { card, entry, holoOnlyCard } from '../fixtures'
+import type { Card, Language } from '../../src/lib/models'
 import type { Wishlist, WishlistItem } from '../../src/lib/wishlists'
 
 const alice = { id: '11111111-1111-4111-8111-111111111111', aud: 'authenticated', role: 'authenticated', email: 'alice@example.com', is_anonymous: false, app_metadata: {}, user_metadata: {}, created_at: '2026-09-17T00:00:00Z' }
@@ -299,4 +300,310 @@ test('el catálogo compacto tiene dos columnas, controles táctiles y filtros qu
   await expect(page.getByLabel('Número de carta', { exact: true })).toHaveValue('058')
   await page.getByRole('button', { name: 'Ver lista', exact: true }).click()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+// Extensión del setup existente: los servicios privados y sus contadores no se sustituyen.
+function priceItem(detail: Card, language: Language = 'es', listId = firstId, target: number | null = null): WishlistItem {
+  const { id, localId, name, image } = detail
+  return { ...wished, list_id: listId, card_id: id, language, target_price: target, card_snapshot: { id, localId, name, image } }
+}
+
+function deferred() {
+  let resolve!: () => void
+  const promise = new Promise<void>((done) => { resolve = done })
+  return { promise, resolve }
+}
+
+async function mockCurrentPrices(page: Page, reply: (language: string, id: string) => { detail: Card; status?: number; gate?: Promise<void> }) {
+  const requests: string[] = []
+  // Esta ruta más específica se registra después de setup y antes de entrar en Deseos.
+  await page.route(/^https:\/\/api\.tcgdex\.net\/v2\/[^/]+\/cards\/[^/?]+$/, async (route) => {
+    const [, , language, , id] = new URL(route.request().url()).pathname.split('/')
+    requests.push(`${language}:${id}`)
+    const response = reply(language, id)
+    if (response.gate) await response.gate
+    await route.fulfill({ status: response.status ?? 200, json: response.status ? { error: 'Fallo público simulado' } : response.detail })
+  })
+  return requests
+}
+
+async function enterPriceList(page: Page) {
+  await page.reload()
+  await nav(page).getByRole('button', { name: 'Deseos', exact: true }).click()
+  await expect(page.locator('.wishlist-card').first()).toBeAttached()
+}
+
+function priceRow(page: Page, name: string, language = 'Español') {
+  return page.locator('.wishlist-card').filter({ has: page.getByRole('button', { name: `Abrir ${name} en ${language}`, exact: true }) })
+}
+
+// Barrera de render/efectos, no espera arbitraria ni sondeo de red con sleep.
+async function priceEffects(page: Page) {
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+}
+
+test.describe('precio Actual en Deseos', () => {
+  test('normal y holo exclusiva coinciden con la ficha, preservan objetivo 90 y comparten caché entre listas', async ({ page }) => {
+    const state = await setup(page)
+    const secondId = '44444444-4444-4444-8444-444444444444'
+    state.lists = [firstList, { ...firstList, id: secondId, name: 'Otra lista' }]
+    state.items = [priceItem(card, 'es', firstId, 90), priceItem(holoOnlyCard), priceItem(card, 'es', secondId, 90)]
+    const requests = await mockCurrentPrices(page, (_language, id) => ({ detail: id === holoOnlyCard.id ? holoOnlyCard : card }))
+    await enterPriceList(page)
+    const now = Date.now()
+    await page.clock.setFixedTime(now)
+    for (const [detail, amount, variant] of [[card, '2,50 €', 'normal'], [holoOnlyCard, '134,40 €', 'holo']] as const) {
+      const row = priceRow(page, detail.name)
+      await row.scrollIntoViewIfNeeded()
+      const price = row.locator('.wishlist-current-price')
+      await expect(price.locator('small')).toHaveText('Actual')
+      await expect(price.locator('strong')).toHaveText(amount)
+      await expect(price).toHaveAttribute('data-state', 'ready')
+      await expect(price).toHaveAttribute('title', /Mismo precio inicial de la ficha/)
+      await priceEffects(page)
+      // StrictMode puede repetir el montaje inicial; se compara contra el baseline observado.
+      const baseline = requests.filter((key) => key === `es:${detail.id}`).length
+      expect(baseline).toBeGreaterThan(0)
+      const actual = await price.locator('strong').textContent()
+      // El importe forma parte del propio botón de abrir, no de un control independiente.
+      await price.click()
+      const modal = page.getByRole('dialog')
+      await expect(modal.getByRole('combobox', { name: 'Variante', exact: true })).toHaveValue(variant)
+      await expect(modal.locator('.price-link strong')).toHaveText(actual!)
+      if (variant === 'holo') {
+        await expect(price.locator('strong')).not.toHaveText('75,00 €')
+        await expect(modal.locator('.market-low')).toContainText('75,00 €')
+      }
+      await priceEffects(page)
+      expect(requests.filter((key) => key === `es:${detail.id}`)).toHaveLength(baseline)
+      await page.keyboard.press('Escape')
+      await expect(modal).toHaveCount(0)
+    }
+    await expect(priceRow(page, card.name).getByRole('spinbutton')).toHaveValue('90')
+    await page.clock.setFixedTime(now + 4 * 60 * 1000)
+    const baseline = requests.filter((key) => key === `es:${card.id}`).length
+    await page.getByRole('navigation', { name: 'Mis listas privadas' }).getByRole('button', { name: /Otra lista/ }).click()
+    const reused = priceRow(page, card.name)
+    await reused.scrollIntoViewIfNeeded()
+    await expect(reused.locator('.wishlist-current-price strong')).toHaveText('2,50 €')
+    await expect(reused.getByRole('spinbutton')).toHaveValue('90')
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
+    await reused.locator('.wishlist-card-open').click()
+    await expect(page.getByRole('dialog').locator('.price-link strong')).toHaveText('2,50 €')
+    await priceEffects(page)
+    expect(requests.filter((key) => key === `es:${card.id}`)).toHaveLength(baseline)
+    expect(state.items.map((item) => item.target_price)).toEqual([90, null, 90])
+    expect(state.writes).toBe(0)
+    expect(state.collectionWrites).toBe(0)
+  })
+
+  test('loading con gate, error sin cero y recuperación al abrir la ficha', async ({ page }) => {
+    const state = await setup(page)
+    state.lists = [firstList]; state.items = [priceItem(card, 'es', firstId, 90)]
+    const gate = deferred(), started = deferred()
+    let fail = true
+    await mockCurrentPrices(page, () => {
+      started.resolve()
+      return { detail: card, status: fail ? 503 : undefined, gate: gate.promise }
+    })
+    await enterPriceList(page)
+    await page.clock.install()
+    const row = priceRow(page, card.name), price = row.locator('.wishlist-current-price')
+    await row.scrollIntoViewIfNeeded()
+    await started.promise
+    await expect(price).toHaveAttribute('data-state', 'loading')
+    await expect(price.locator('strong')).toHaveText('…')
+    await expect(row.getByRole('spinbutton')).toHaveValue('90')
+    const failure = page.waitForResponse((response) => response.url().endsWith(`/cards/${card.id}`) && response.status() === 503)
+    gate.resolve()
+    await (await failure).finished()
+    await priceEffects(page)
+    await page.clock.fastForward(1100) // Un único reintento de React Query, sin dormir un segundo real.
+    await expect(price).toHaveAttribute('data-state', 'error')
+    await expect(price.locator('strong')).toHaveText('No disponible')
+    await expect(price).toHaveAttribute('title', /Abre la carta para reintentar/)
+    await expect(price).not.toContainText('0,00')
+    await expect(price).not.toContainText('Sin precio')
+    fail = false
+    await row.locator('.wishlist-card-open').click()
+    await expect(page.getByRole('dialog').locator('.price-link strong')).toHaveText('2,50 €')
+    await page.keyboard.press('Escape')
+    await expect(price).toHaveAttribute('data-state', 'ready')
+    await expect(price.locator('strong')).toHaveText('2,50 €')
+    await expect(row.getByRole('spinbutton')).toHaveValue('90')
+    expect(state.items[0].target_price).toBe(90)
+    expect(state.writes).toBe(0)
+    expect(state.collectionWrites).toBe(0)
+  })
+
+  test('datos cacheados conservan el importe y advierten si falla la actualización tras cinco minutos', async ({ page }) => {
+    const state = await setup(page)
+    state.lists = [firstList]; state.items = [priceItem(holoOnlyCard, 'es', firstId, 90)]
+    let fail = false
+    const gate = deferred(), started = deferred()
+    const requests = await mockCurrentPrices(page, () => {
+      if (fail) started.resolve()
+      return { detail: holoOnlyCard, status: fail ? 503 : undefined, gate: fail ? gate.promise : undefined }
+    })
+    await enterPriceList(page)
+    await page.clock.install()
+    const row = priceRow(page, holoOnlyCard.name), price = row.locator('.wishlist-current-price')
+    await row.scrollIntoViewIfNeeded()
+    await expect(price.locator('strong')).toHaveText('134,40 €')
+    await priceEffects(page)
+    const baseline = requests.length
+    fail = true
+    // Cambiar Date no dispara los timeouts de fetch ni los de autenticación.
+    await page.clock.setSystemTime(new Date(Date.now() + 5 * 60 * 1000 + 1000))
+    // React Query escucha window; un evento sintético en document no burbujea por defecto.
+    await page.evaluate(() => window.dispatchEvent(new Event('visibilitychange')))
+    await started.promise
+    await expect(price.locator('strong')).toHaveText('134,40 €')
+    const failure = page.waitForResponse((response) => response.url().endsWith(`/cards/${holoOnlyCard.id}`) && response.status() === 503)
+    gate.resolve()
+    await (await failure).finished()
+    await priceEffects(page)
+    await page.clock.fastForward(1100)
+    await expect(price).toHaveAttribute('data-state', 'error')
+    await expect(price.locator('strong')).toHaveText('134,40 €')
+    await expect(price).toHaveAttribute('title', /Última referencia disponible; no se pudo actualizar/)
+    expect(requests.length).toBeGreaterThan(baseline)
+    fail = false
+    await row.locator('.wishlist-card-open').click()
+    await expect(price).toHaveAttribute('data-state', 'ready')
+    await expect(price).not.toHaveAttribute('title', /no se pudo actualizar/)
+    await expect(page.getByRole('dialog').locator('.price-link strong')).toHaveText('134,40 €')
+    expect(state.items[0].target_price).toBe(90)
+    expect(state.writes).toBe(0)
+    expect(state.collectionWrites).toBe(0)
+  })
+
+  test('la misma id en español e inglés mantiene precios y cachés independientes', async ({ page }) => {
+    const state = await setup(page)
+    state.lists = [firstList]; state.items = [priceItem(card), priceItem(card, 'en')]
+    const english: Card = { ...card, pricing: { cardmarket: { unit: 'EUR', trend: 19.95 } } }
+    const requests = await mockCurrentPrices(page, (language) => ({ detail: language === 'en' ? english : card }))
+    await enterPriceList(page)
+    for (const [language, code, amount] of [['Español', 'es', '2,50 €'], ['Inglés', 'en', '19,95 €']] as const) {
+      const row = priceRow(page, card.name, language)
+      await row.scrollIntoViewIfNeeded()
+      await expect(row.locator('.wishlist-current-price strong')).toHaveText(amount)
+      await priceEffects(page)
+      const baseline = requests.filter((key) => key === `${code}:${card.id}`).length
+      expect(baseline).toBeGreaterThan(0)
+      await row.locator('.wishlist-card-open').click()
+      const modal = page.getByRole('dialog')
+      await expect(modal.locator('.detail-art .pill')).toContainText(language)
+      await expect(modal.locator('.price-link strong')).toHaveText(amount)
+      await priceEffects(page)
+      expect(requests.filter((key) => key === `${code}:${card.id}`)).toHaveLength(baseline)
+      await page.keyboard.press('Escape')
+    }
+    await expect(priceRow(page, card.name).locator('.wishlist-current-price strong')).toHaveText('2,50 €')
+    expect(new Set(requests)).toEqual(new Set([`es:${card.id}`, `en:${card.id}`]))
+    expect(state.writes).toBe(0)
+    expect(state.collectionWrites).toBe(0)
+  })
+
+  test('quote null muestra Sin precio, no cero ni low, y respeta la variante inicial de la ficha', async ({ page }) => {
+    const state = await setup(page)
+    const details: Card[] = [
+      { ...card, id: 'test-reverse', name: 'Solo reverse', variants: { reverse: true } },
+      { ...card, id: 'test-first', name: 'Primera edición', variants: { firstEdition: true } },
+      { ...card, id: 'test-usd', name: 'Moneda USD', pricing: { cardmarket: { unit: 'USD', trend: 134.4, low: 75 } } },
+      { ...card, id: 'test-zero', name: 'Referencia cero', pricing: { cardmarket: { unit: 'EUR', trend: 0, low: 75 } } },
+    ]
+    state.lists = [firstList]; state.items = details.map((detail) => priceItem(detail))
+    await mockCurrentPrices(page, (_language, id) => ({ detail: details.find((detail) => detail.id === id)! }))
+    await enterPriceList(page)
+    for (const [index, detail] of details.entries()) {
+      const row = priceRow(page, detail.name), price = row.locator('.wishlist-current-price')
+      await row.scrollIntoViewIfNeeded()
+      await expect(price).toHaveAttribute('data-state', 'ready')
+      await expect(price.locator('strong')).toHaveText('Sin precio')
+      await row.locator('.wishlist-card-open').click()
+      const modal = page.getByRole('dialog')
+      await expect(modal.getByRole('combobox', { name: 'Variante', exact: true })).toHaveValue(['reverse', 'firstEdition', 'normal', 'normal'][index])
+      await expect(modal.locator('.price-link strong')).toHaveText('Sin precio')
+      await page.keyboard.press('Escape')
+    }
+    expect(state.writes).toBe(0)
+    expect(state.collectionWrites).toBe(0)
+  })
+
+  test('muchas cartas fuera de pantalla no consultan detalle hasta aproximarse al viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 })
+    const state = await setup(page)
+    const details = Array.from({ length: 36 }, (_, index): Card => ({ ...card, id: `lazy-${index}`, name: `Carta diferida ${index}` }))
+    state.lists = [firstList]; state.items = details.map((detail) => priceItem(detail))
+    const requests = await mockCurrentPrices(page, (_language, id) => ({ detail: details.find((detail) => detail.id === id)! }))
+    await enterPriceList(page)
+    await expect(page.locator('.wishlist-card')).toHaveCount(36)
+    const first = priceRow(page, details[0].name), last = priceRow(page, details[35].name)
+    await first.scrollIntoViewIfNeeded()
+    await expect(first.locator('.wishlist-current-price strong')).toHaveText('2,50 €')
+    await priceEffects(page)
+    const lastTop = await last.locator('.wishlist-current-price').evaluate((element) => element.getBoundingClientRect().top)
+    expect(lastTop).toBeGreaterThan(800 + 120)
+    expect(requests).not.toContain('es:lazy-35')
+    await expect(last.locator('.wishlist-current-price strong')).toHaveText('…')
+    expect(new Set(requests).size).toBeLessThan(36)
+    // Dentro del rootMargin de 120px, todavía por debajo de la pantalla.
+    await last.locator('.wishlist-current-price').evaluate((element) => {
+      window.scrollTo(0, scrollY + element.getBoundingClientRect().top - innerHeight - 60)
+    })
+    await expect(last.locator('.wishlist-current-price strong')).toHaveText('2,50 €')
+    const nearTop = await last.locator('.wishlist-current-price').evaluate((element) => element.getBoundingClientRect().top)
+    expect(nearTop).toBeGreaterThanOrEqual(800)
+    expect(nearTop).toBeLessThan(800 + 120)
+    expect(requests).toContain('es:lazy-35')
+    expect(state.writes).toBe(0)
+    expect(state.collectionWrites).toBe(0)
+  })
+
+  for (const width of [320, 390, 768, 1365]) {
+    for (const theme of ['light', 'dark'] as const) {
+      test(`nombre y precio a la derecha sin overflow: ${width}px ${theme}`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 950 })
+        const state = await setup(page)
+        const long: Card = { ...card, id: 'layout-long', name: 'Pikachu edición especial de coleccionista con un nombre extraordinariamente largo', pricing: { cardmarket: { unit: 'EUR', trend: 1234567.89 } } }
+        const details = [card, holoOnlyCard, long]
+        state.lists = [firstList]; state.items = details.map((detail) => priceItem(detail, 'es', firstId, 90))
+        await mockCurrentPrices(page, (_language, id) => ({ detail: details.find((detail) => detail.id === id)! }))
+        await enterPriceList(page)
+        if (theme === 'dark') await page.getByRole('button', { name: 'Activar modo nocturno', exact: true }).click()
+        await expect(page.locator('html')).toHaveAttribute('data-theme', theme)
+        for (const [index, detail] of details.entries()) {
+          const row = priceRow(page, detail.name)
+          await row.scrollIntoViewIfNeeded()
+          await expect(row.locator('.wishlist-current-price strong')).toHaveText(['2,50 €', '134,40 €', '1.234.567,89 €'][index])
+          await expect(row.getByRole('spinbutton')).toHaveValue('90')
+          const geometry = await row.evaluate((element) => {
+            const box = (selector: string) => element.querySelector(selector)!.getBoundingClientRect()
+            const name = box('.wishlist-card-name'), price = box('.wishlist-current-price'), heading = box('.wishlist-card-heading')
+            return {
+              nameRight: name.right, priceLeft: price.left, priceRight: price.right, headingRight: heading.right,
+              nameTop: name.top, priceTop: price.top,
+              overflows: [element, ...element.querySelectorAll('.wishlist-card-open, .wishlist-card-heading, .wishlist-card-name, .wishlist-current-price, .wishlist-current-price strong')].map((node) => node.scrollWidth - node.clientWidth),
+              targetInsideButton: Boolean(element.querySelector('.wishlist-card-open .wishlist-target-price')),
+              documentOverflow: document.documentElement.scrollWidth - innerWidth,
+            }
+          })
+          expect(geometry.priceLeft).toBeGreaterThanOrEqual(geometry.nameRight)
+          expect(Math.abs(geometry.nameTop - geometry.priceTop)).toBeLessThanOrEqual(1)
+          expect(geometry.priceRight).toBeLessThanOrEqual(geometry.headingRight + 1)
+          expect(geometry.overflows.every((overflow) => overflow <= 1)).toBe(true)
+          expect(geometry.documentOverflow).toBeLessThanOrEqual(1)
+          expect(geometry.targetInsideButton).toBe(false)
+          if ((width === 390 && theme === 'dark') || width === 1365) {
+            const path = testInfo.outputPath(`actual-${width}-${theme}-${detail.id}.png`)
+            await row.screenshot({ path, animations: 'disabled' })
+            await testInfo.attach(`Actual ${width} ${theme} ${detail.id}`, { path, contentType: 'image/png' })
+          }
+        }
+        expect(state.writes).toBe(0)
+        expect(state.collectionWrites).toBe(0)
+      })
+    }
+  }
 })

@@ -36,6 +36,13 @@ export const cardSchema = briefSchema.extend({
 export type CardBrief = z.infer<typeof briefSchema>
 export type Card = z.infer<typeof cardSchema>
 
+/** Mismo orden de variantes en la ficha y en la referencia de la lista de deseos. */
+export function availableVariants(card: Card, savedVariant?: Variant): Variant[] {
+  const all = Object.keys(variants) as Variant[]
+  const available = all.filter((variant) => !card.variants || card.variants[variant] || variant === savedVariant)
+  return available.length ? available : all
+}
+
 /** Solo se guardan páginas públicas de cartas sueltas de Cardmarket. */
 export function isCardmarketProductUrl(value: string) {
   try {

@@ -10,6 +10,7 @@ import {
 } from '../lib/wishlists'
 import { CardImage } from './CardImage'
 import { Modal } from './Modal'
+import { WishlistCurrentPrice } from './WishlistCurrentPrice'
 
 type Write = (userId: string, signal: AbortSignal) => Promise<unknown>
 type Snapshot = {
@@ -495,7 +496,7 @@ function WishlistPageScope({ onAuth, onOpenCard, onExploreCatalog }: PageProps) 
                     <button type="button" className="wishlist-card-open" aria-label={`Abrir ${item.card_snapshot.name} en ${languages[item.language]}`}
                       onClick={() => onOpenCard(item.card_snapshot, item.language)}>
                       <CardImage card={item.card_snapshot} />
-                      <span className="wishlist-card-info"><strong>{item.card_snapshot.name}</strong><span>{languages[item.language]}</span><small>N.º {item.card_snapshot.localId}</small></span>
+                      <span className="wishlist-card-info"><span className="wishlist-card-heading"><strong className="wishlist-card-name">{item.card_snapshot.name}</strong><WishlistCurrentPrice key={wishlistCardKey(item.card_id, item.language)} cardId={item.card_id} language={item.language} /></span><span>{languages[item.language]}</span><small>N.º {item.card_snapshot.localId}</small></span>
                     </button>
                     <WishlistTargetPrice key={`${item.list_id}:${item.target_price ?? 'none'}`} item={item} canWrite={canWrite} pending={pending} onSave={(targetPrice) => save((owner, signal) => updateWishlistItemTargetPrice(owner, selected.id, item.card_id, item.language, targetPrice, signal))} />
                     <button type="button" className="wishlist-button wishlist-card-remove" disabled={!canWrite}

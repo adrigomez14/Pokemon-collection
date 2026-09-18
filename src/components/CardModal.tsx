@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Plus, Save, Trash2 } from 'lucide-react'
 import { getCard } from '../lib/catalog'
-import { cardmarketUrl, conditions, entryInputSchema, euros, formatDate, isCardmarketProductUrl, languages, marketQuote, variants, type Card, type CardBrief, type Condition, type Entry, type EntryInput, type Language, type Variant } from '../lib/models'
+import { availableVariants, cardmarketUrl, conditions, entryInputSchema, euros, formatDate, isCardmarketProductUrl, languages, marketQuote, variants, type Card, type CardBrief, type Condition, type Entry, type EntryInput, type Language, type Variant } from '../lib/models'
 import { CardImage } from './CardImage'
 import { Modal } from './Modal'
 
@@ -25,8 +25,7 @@ function CardForm({ card, selection, signedIn, onAuth, busy, setBusy, onSave, on
   onSave: (input: EntryInput, id?: string) => Promise<void>; onDelete: (id: string) => Promise<void>; onClose: () => void;
 }) {
   const entry = selection.entry
-  const available = (Object.keys(variants) as Variant[]).filter((v) => !card.variants || card.variants[v] || v === entry?.variant)
-  const options = available.length ? available : Object.keys(variants) as Variant[]
+  const options = availableVariants(card, entry?.variant)
   const [variant, setVariant] = useState<Variant>(entry?.variant ?? options[0])
   const [condition, setCondition] = useState<Condition>(entry?.condition ?? 'NM')
   const [quantity, setQuantity] = useState(String(entry?.quantity ?? 1))
