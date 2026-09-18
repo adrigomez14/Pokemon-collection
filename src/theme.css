@@ -71,10 +71,10 @@ body::before {
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M90 18l28 52h-22l16 62-44-62h22L90 18Z' fill='%23f4d249' opacity='.46'/%3E%3Cpath d='M42 80c18-22 38-31 67-36-12 27-35 47-67 57Z' fill='%235ec7ff' opacity='.42'/%3E%3Cpath d='M142 84c-8-21 4-38 32-48-8 31-20 42-32 48Z' fill='%2368d976' opacity='.4'/%3E%3Cpath d='M82 114c12-18 29-29 49-38-16 32-38 47-49 38Z' fill='%23ff8d5c' opacity='.38'/%3E%3Ccircle cx='123' cy='126' r='12' fill='%23c98fff' opacity='.28'/%3E%3Cpath d='M24 132c16-18 28-22 40-22 17 0 30 13 30 30-17 0-30-3-40 3-12 7-24 8-30-11Z' fill='%23ffffff' opacity='.18'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cg font-family='Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif' font-size='38' font-weight='700' fill='%234ea3cf' opacity='.42'%3E%3Ctext x='28' y='62'%3E⚡%3C/text%3E%3Ctext x='118' y='62'%3E💧%3C/text%3E%3Ctext x='28' y='150'%3E🔥%3C/text%3E%3Ctext x='118' y='150'%3E🌿%3C/text%3E%3Ctext x='170' y='110'%3E✨%3C/text%3E%3C/g%3E%3C/svg%3E");
   background-repeat: repeat;
-  background-size: 180px 180px;
-  opacity: 0.9;
+  background-size: 220px 220px;
+  opacity: 1;
 }
 body > * {
   position: relative;
