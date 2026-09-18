@@ -64,17 +64,13 @@
 body {
   position: relative;
   background-color: #f4f7f9;
+  background-image: linear-gradient(#f4f7f9a6, #f4f7f9a6), url('/type-icons/fire.png'), url('/type-icons/water.png'), url('/type-icons/grass.png'), url('/type-icons/electric.png'), url('/type-icons/psychic.png'), url('/type-icons/dragon.png'), url('/type-icons/ice.png'), url('/type-icons/fairy.png'), url('/type-icons/ghost.png'), url('/type-icons/fighting.png'), url('/type-icons/poison.png'), url('/type-icons/rock.png');
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 52px 15px;
+  background-position: 0 0, 6% 12%, 36% 21%, 78% 10%, 17% 39%, 55% 34%, 91% 47%, 8% 75%, 40% 68%, 72% 84%, 24% 94%, 97% 72%, 58% 91%;
 }
 body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: url('/type-pattern-real.svg');
-  background-repeat: repeat;
-  background-size: 520px 360px;
-  opacity: 0.62;
+  content: none;
 }
 body > * {
   position: relative;
