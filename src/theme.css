@@ -371,6 +371,7 @@ footer small, footer > a:last-child { color: #5c7283; }
 [data-theme="dark"] .wishlist-target-price .wishlist-button:hover:not(:disabled) { background: #244556; border-color: #6d94a5; color: #fff; }
 [data-theme="dark"] .wishlist-alert-settings { background: #142532; border-color: #314b5c; color: #e4edf4; }
 [data-theme="dark"] .wishlist-alert-settings p { color: #a9c0cb; }
+[data-theme="dark"] .wishlist-alert-settings .wishlist-alert-schedule { color: #f0cb78; }
 [data-theme="dark"] .wishlist-alert-settings label { color: #dce9ef; }
 [data-theme="dark"] .wishlist-alert-settings input { background: #142532; }
 [data-theme="dark"] .wishlist-price-alerts { background: #173b2d; border-color: #3f8064; color: #c4f1d4; }

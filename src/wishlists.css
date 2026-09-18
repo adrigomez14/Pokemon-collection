@@ -40,6 +40,7 @@
 .wishlist-status { padding: 12px 15px; border: 1px solid #c7dce7; border-radius: 10px; background: #edf6fa; color: #254d65; font-size: 13px; }
 .wishlist-alert-settings, .wishlist-price-alerts { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border: 1px solid #d8e3ea; border-radius: 12px; background: #fff; color: #19334b; }
 .wishlist-alert-settings p, .wishlist-price-alerts p { margin: 4px 0 0; color: #4d6478; font-size: 12px; }
+.wishlist-alert-settings .wishlist-alert-schedule { color: #8a6b35; font-size: 11px; }
 .wishlist-alert-settings label { flex-direction: row; align-items: center; gap: 8px; white-space: nowrap; color: #304b61; }
 .wishlist-alert-settings input { width: 17px; height: 17px; margin: 0; accent-color: #bd263c; }
 .wishlist-price-alerts { display: block; border-color: #a9d2b6; background: #f0faf3; color: #235e3c; }

@@ -12,7 +12,7 @@
   "functions": {
     "api/feedback-notification.ts": { "maxDuration": 30 }
   },
-  "crons": [{ "path": "/api/price-alerts", "schedule": "0 * * * *" }],
+  "crons": [{ "path": "/api/price-alerts", "schedule": "0 9 * * *" }],
   "headers": [{ "source": "/coleccion", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }, {
     "source": "/deseos", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
   }, {

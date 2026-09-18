@@ -319,7 +319,7 @@ function PriceAlertSettings({ userId }: { userId: string }) {
     } finally { setPending(false) }
   }
   return <div className="wishlist-alert-settings">
-    <div><strong>Avisos de precio</strong><p>Revisamos tus objetivos cada hora y te avisamos dentro de la lista cuando una carta los alcanza.</p></div>
+    <div><strong>Avisos de precio</strong><p>Revisamos tus objetivos una vez al día y te avisamos dentro de la lista cuando una carta alcanza tu precio.</p><p className="wishlist-alert-schedule">En el plan actual, el aviso puede tardar hasta 24 horas desde que cambia el precio.</p></div>
     <label><input type="checkbox" checked={preference.data === true} disabled={pending || preference.isPending || preference.isError} onChange={(event) => { void changePreference(event.target.checked) }} /> Enviarme también un correo</label>
   </div>
 }
