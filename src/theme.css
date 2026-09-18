@@ -151,6 +151,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .amber { background: #fff3cf; color: #8d6908; }
 .setup-banner { background: #edf5fa; border-color: #d0e1eb; color: #4d677a; }
 .setup-banner strong, .setup-banner > svg { color: #234e6b; }
+.catalog-section > .section-heading { padding: 8px 10px; margin: -8px -10px 14px; border-radius: 10px; background: #f4f7f9e8; backdrop-filter: blur(4px); }
 .section-heading h2 { color: #17324d; }
 .section-heading .eyebrow { color: #9c273b; letter-spacing: 1.6px; }
 .language-label { color: #506b7e; }
