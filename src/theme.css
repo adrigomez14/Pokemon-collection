@@ -61,8 +61,13 @@
   color: #19334b;
   background: #f4f7f9;
 }
+html {
+  min-height: 100%;
+}
 body {
   position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
   background-color: #f4f7f9;
   background-image: url('/type-circle-pattern.svg');
   background-repeat: repeat;
