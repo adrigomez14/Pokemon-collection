@@ -1,0 +1,71 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #f7f9ff;
+  background: #101b35;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  padding: max(24px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background: radial-gradient(ellipse at top, #223356 0, #101b35 70%);
+}
+
+.offline-card {
+  width: 100%;
+  max-width: 540px;
+  padding: clamp(24px, 6vw, 48px);
+  border: 1px solid #485675;
+  border-top: 4px solid #ff6578;
+  border-radius: 24px;
+  background: #16233e;
+  box-shadow: 0 24px 64px #060d204d;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.brand { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 0 0 32px; font-size: 1.4rem; font-weight: 800; }
+.brand-mark { width: 24px; height: 30px; border: 3px solid #ff6578; border-radius: 6px; box-shadow: 5px 4px 0 -1px #ffda69; transform: rotate(-12deg); }
+.connection-mark { display: inline-grid; place-items: center; width: 64px; height: 64px; border: 2px solid #ffda69; border-radius: 50%; color: #ffda69; background: #ffda6910; font-size: 2rem; font-weight: 800; }
+.eyebrow { margin: 24px 0 10px; color: #ffda69; font-size: .85rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+h1 { margin: 0; font-size: clamp(1.7rem, 6vw, 2.15rem); line-height: 1.2; }
+.description { margin: 20px 0 24px; color: #d1daec; line-height: 1.65; }
+
+button {
+  min-height: 48px;
+  width: 100%;
+  padding: 12px 20px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  font: inherit;
+  font-weight: 750;
+  color: #101b35;
+  background: #ffda69;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:hover:not(:disabled) { background: #ffe590; }
+button:focus-visible { outline: 3px solid #f7f9ff; outline-offset: 5px; }
+button:disabled { cursor: progress; color: #23314f; background: #d6bd79; }
+.status { min-height: 3em; margin: 16px 0 24px; color: #e4eafa; font-size: .9rem; line-height: 1.5; }
+.privacy-note { margin: 0; padding-top: 20px; border-top: 1px solid #485675; color: #bcc9e0; font-size: .8rem; line-height: 1.6; }
+.noscript-note { color: #ffda69; line-height: 1.6; }
+
+@media (display-mode: standalone) {
+  body { min-height: 100dvh; }
+}
+
+@media (forced-colors: active) {
+  .offline-card, .connection-mark, button { border: 2px solid CanvasText; }
+}

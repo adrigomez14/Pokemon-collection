@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+    <meta name="pokefolio-offline" content="public-static-v1">
+    <meta name="theme-color" content="#101b35">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Sin conexión · Pokéfolio</title>
+    <link rel="stylesheet" href="/pwa/offline.css">
+    <script src="/pwa/offline.js" defer></script>
+  </head>
+  <body>
+    <main class="offline-card" aria-labelledby="offline-title">
+      <p class="brand"><span class="brand-mark" aria-hidden="true"></span>Pokéfolio</p>
+      <span class="connection-mark" aria-hidden="true">!</span>
+      <p class="eyebrow">Una pequeña pausa</p>
+      <h1 id="offline-title">Ahora mismo no hay conexión</h1>
+      <p class="description">Para abrir Pokéfolio necesitas conexión a Internet. Comprueba tu wifi o tus datos móviles y vuelve a intentarlo.</p>
+      <button id="retry" type="button" aria-describedby="connection-status">Reintentar</button>
+      <p id="connection-status" class="status" role="status" aria-live="polite" aria-atomic="true">Comprobaremos la conexión antes de abrir el catálogo.</p>
+      <p class="privacy-note">Esta pantalla es pública y no muestra ni guarda datos de tu cuenta, tu colección o tus deseos. No se guardan acciones para enviarlas más tarde.</p>
+      <noscript><p class="noscript-note">Activa JavaScript para comprobar la conexión. Cuando tengas Internet, vuelve a abrir Pokéfolio.</p></noscript>
+    </main>
+  </body>
+</html>

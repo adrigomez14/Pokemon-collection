@@ -14,6 +14,7 @@ import { DuplicatesPanel } from './components/DuplicatesPanel'
 import { SetProgress } from './components/SetProgress'
 import { Modal } from './components/Modal'
 import { TrainerHero } from './components/TrainerHero'
+import { PwaInstallButton } from './components/PwaControls'
 import { WishlistHeart, WishlistPage, WishlistProvider } from './components/Wishlists'
 import { getCard, LATEST_SET, searchCards, type Search } from './lib/catalog'
 import { addEntry, importEntries, loadCollection, removeEntry, updateEntry, updateSnapshot } from './lib/collection'
@@ -404,6 +405,7 @@ function CollectionApp() {
           <a className="brand footer-brand" href={pagePaths.catalog} onClick={(event) => { event.preventDefault(); setView('catalog'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>pokéfolio<span className="brand-dot">.</span></a>
           <p>Hecho para coleccionar, no para dejar de hacerlo.<br /><small>Proyecto independiente, no afiliado a Pokémon, Nintendo, TCGdex ni Cardmarket. Imágenes y datos pertenecen a sus titulares.</small></p>
           <div className="footer-links">
+            <PwaInstallButton />
             <a href={pagePaths.privacy} onClick={(event) => { event.preventDefault(); setView('privacy') }}>Privacidad y tus datos</a>
             <a href={pagePaths.contact} onClick={(event) => { event.preventDefault(); setView('contact') }}>Contacto</a>
             <a href="https://tcgdex.dev" target="_blank" rel="noopener noreferrer">Datos de TCGdex <ExternalLink size={13} /></a>

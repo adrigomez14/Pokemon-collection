@@ -14,7 +14,16 @@
     "api/price-alerts.ts": { "maxDuration": 60 }
   },
   "crons": [{ "path": "/api/price-alerts", "schedule": "0 9 * * *" }],
-  "headers": [{ "source": "/coleccion", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }, {
+  "headers": [{ "source": "/sw.js", "headers": [
+    { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" },
+    { "key": "Service-Worker-Allowed", "value": "/" }
+  ] }, { "source": "/manifest.webmanifest", "headers": [
+    { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" },
+    { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" }
+  ] }, { "source": "/pwa/(.*)", "headers": [
+    { "key": "Cache-Control", "value": "no-cache, max-age=0, must-revalidate" },
+    { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+  ] }, { "source": "/coleccion", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }] }, {
     "source": "/deseos", "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
   }, {
     "source": "/(.*)",
@@ -22,7 +31,7 @@
       { "key": "X-Content-Type-Options", "value": "nosniff" },
       { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
       { "key": "X-Frame-Options", "value": "DENY" },
-      { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://assets.tcgdex.net; connect-src 'self' https://api.tcgdex.net https://*.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" }
+      { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; worker-src 'self'; manifest-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://assets.tcgdex.net; connect-src 'self' https://api.tcgdex.net https://*.supabase.co; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'" }
     ]
   }]
 }

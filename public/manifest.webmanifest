@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Pokéfolio",
+  "short_name": "Pokéfolio",
+  "description": "Tu colección de cartas Pokémon TCG, contigo. Requiere conexión para consultar y guardar tus datos.",
+  "lang": "es",
+  "start_url": "/catalogo",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#17324d",
+  "theme_color": "#17324d",
+  "icons": [
+    { "src": "/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
