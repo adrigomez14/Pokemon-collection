@@ -1,7 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#17324d"/>
-  <circle cx="256" cy="256" r="180" fill="#fff"/>
-  <path d="M76 256a180 180 0 0 1 360 0Z" fill="#ed4854"/>
-  <path d="M76 256h360" stroke="#17324d" stroke-width="42"/>
-  <circle cx="256" cy="256" r="68" fill="#fff" stroke="#17324d" stroke-width="36"/>
+  <!-- Cabecera: 36px border-box, borde 3px, gradiente sobre los 30px interiores.
+       ::after es content-box: 9.59375px medidos en Chromium + dos bordes de 3px.
+       Escala 11: radio exterior 198px, dentro del radio seguro maskable de 204.8px. -->
+  <defs>
+    <clipPath id="ball-interior"><circle cx="18" cy="18" r="15"/></clipPath>
+  </defs>
+  <rect width="512" height="512" fill="#f5f8fc"/>
+  <g id="pokeball" transform="translate(58 58) scale(11)">
+    <circle cx="18" cy="18" r="18" fill="#17324d"/>
+    <g clip-path="url(#ball-interior)">
+      <rect x="3" y="3" width="30" height="30" fill="#fff"/>
+      <rect x="3" y="3" width="30" height="13.2" fill="#ed4854"/>
+      <rect x="3" y="16.2" width="30" height="3.6" fill="#17324d"/>
+    </g>
+    <circle cx="18" cy="18" r="7.796875" fill="#17324d"/>
+    <circle cx="18" cy="18" r="4.796875" fill="#fff"/>
+  </g>
 </svg>

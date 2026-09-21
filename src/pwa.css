@@ -4,7 +4,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .header { padding-top: env(safe-area-inset-top, 0px); }
 .pwa-boundary, .pwa-app { display: contents; }
 .pwa-app[hidden], .pwa-app[hidden] dialog, .pwa-app[hidden] dialog::backdrop { display: none !important; }
-.pwa-install-link, .pwa-install-content, .pwa-confirm-content, .pwa-update, .pwa-offline {
+.pwa-guide, .pwa-install-link, .pwa-install-content, .pwa-confirm-content, .pwa-update, .pwa-offline {
   --pwa-surface: #fff;
   --pwa-text: #19334b;
   --pwa-muted: #526779;
@@ -15,7 +15,7 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
   color: var(--pwa-text);
   overflow-wrap: anywhere;
 }
-[data-theme="dark"] .pwa-install-link, [data-theme="dark"] .pwa-install-content,
+[data-theme="dark"] .pwa-guide, [data-theme="dark"] .pwa-install-link, [data-theme="dark"] .pwa-install-content,
 [data-theme="dark"] .pwa-confirm-content, [data-theme="dark"] .pwa-update, [data-theme="dark"] .pwa-offline {
   --pwa-surface: #142532;
   --pwa-text: #e4edf4;
@@ -55,7 +55,26 @@ body { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-are
 .pwa-offline-icon { margin-top: 24px; color: var(--pwa-accent); }
 .pwa-offline h1 { margin: 10px 0; font-size: clamp(25px, 6vw, 32px); line-height: 1.25; color: var(--pwa-text); }
 .pwa-offline h1:focus { outline: none; }
+.pwa-guide { margin: 0 0 25px; padding: 22px; border: 1px solid var(--pwa-border); border-left: 4px solid #ed4854; border-radius: 16px; background: var(--pwa-surface); line-height: 1.65; }
+.pwa-guide-intro { display: flex; gap: 18px; align-items: center; }
+.pwa-guide-intro > img { flex-shrink: 0; border-radius: 16px; }
+.pwa-guide-intro > div { min-width: 0; }
+.pwa-guide h2 { margin: 0 0 6px; font-size: clamp(19px, 3vw, 23px); line-height: 1.3; color: var(--pwa-text); }
+.pwa-guide p { margin: 8px 0; font-size: 14px; color: var(--pwa-muted); }
+.pwa-guide .pwa-guide-eyebrow { margin: 0 0 6px; font-size: 10px; font-weight: 800; letter-spacing: 1.4px; color: var(--pwa-accent); }
+.pwa-guide-details { margin-top: 12px; }
+.pwa-guide-details > summary { width: fit-content; max-width: 100%; padding: 10px 0; min-height: 44px; color: var(--pwa-text); font-size: 14px; font-weight: 700; cursor: pointer; }
+.pwa-guide-details > summary:focus-visible { outline: 3px solid var(--pwa-focus); outline-offset: 4px; border-radius: 4px; }
+.pwa-guide-platforms { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 12px 0 16px; }
+.pwa-guide-platforms > section { padding: 18px; border-radius: 12px; border: 1px solid var(--pwa-border); background: var(--pwa-soft); }
+.pwa-guide h3 { margin: 0 0 12px; color: var(--pwa-text); font-size: 16px; }
+.pwa-guide ol { margin: 0; padding-left: 22px; font-size: 14px; }
+.pwa-guide li + li { margin-top: 9px; }
 @media (max-width: 600px) {
+  .pwa-guide { padding: 16px; }
+  .pwa-guide-intro { align-items: flex-start; gap: 12px; }
+  .pwa-guide-intro > img { width: 44px; height: 44px; border-radius: 11px; }
+  .pwa-guide-platforms { grid-template-columns: minmax(0, 1fr); }
   .pwa-update { margin: 12px; }
   .pwa-actions { flex-direction: column-reverse; }
   .pwa-actions > button, .pwa-offline-card > button { width: 100%; }

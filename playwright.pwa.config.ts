@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 // Build de producción aislado; nunca reutilizar un servidor dev ni cargar .env.
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: 'pwa.spec.ts',
+  testMatch: ['pwa.spec.ts', 'pwa-logo.spec.ts'],
   fullyParallel: false,
   workers: 1, // El control HTTP en memoria es compartido: los escenarios son seriales.
   retries: 0,

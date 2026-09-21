@@ -81,6 +81,229 @@ async function authDraft(page: Page, value: string) {
   await page.getByRole('textbox', { name: 'Correo electrónico', exact: true }).fill(value)
 }
 
+const guideTitle = 'Pokéfolio también en tu móvil'
+const installGuide = (page: Page) => page.getByRole('region', { name: guideTitle, exact: true })
+
+async function expandGuide(page: Page) {
+  const guide = installGuide(page)
+  await guide.locator('summary').click()
+  await expect(guide.locator('details')).toHaveAttribute('open', '')
+  return guide
+}
+
+test('guía visible en catálogo: después de TrainerHero y antes del resumen, sin modal automático', async ({ page }) => {
+  await ready(page)
+  const guide = installGuide(page)
+  await expect(guide).toHaveCount(1)
+  await expect(guide.getByRole('heading', { name: guideTitle, level: 2 })).toBeVisible()
+  await expect(guide.locator('details')).not.toHaveAttribute('open')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  expect(await guide.evaluate(node => ({
+    afterHero: node.previousElementSibling?.matches('.trainer-hero'),
+    beforeStats: node.nextElementSibling?.getAttribute('aria-label'),
+  }))).toEqual({ afterHero: true, beforeStats: 'Resumen de tu colección' })
+  const hero = await page.getByRole('region', { name: 'Tu aventura Pokémon TCG' }).boundingBox()
+  const box = await guide.boundingBox()
+  expect(hero!.y + hero!.height).toBeLessThanOrEqual(box!.y)
+  // El diseño móvil existente oculta .stats; el orden DOM se comprueba arriba
+  // y la geometría se contrasta con el siguiente bloque que realmente se muestra.
+  const stats = page.getByRole('region', { name: 'Resumen de tu colección', includeHidden: true })
+  if (page.viewportSize()!.width <= 700) await expect(stats).toBeHidden()
+  else await expect(stats).toBeVisible()
+  const next = await (page.viewportSize()!.width <= 700 ? page.locator('.catalog-section') : stats).boundingBox()
+  expect(box!.y + box!.height).toBeLessThanOrEqual(next!.y)
+})
+
+test('guía accesible con Enter y Space: Android e iOS simultáneos, misma cuenta y límites sin conexión', async ({ page }) => {
+  await ready(page)
+  const guide = installGuide(page)
+  const summary = guide.locator('summary')
+  const details = guide.locator('details')
+  await summary.focus()
+  await expect(summary).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(details).toHaveAttribute('open', '')
+  const android = guide.getByRole('region', { name: 'Android · Chrome', exact: true })
+  const apple = guide.getByRole('region', { name: 'iPhone o iPad · Safari', exact: true })
+  await expect(android).toBeVisible()
+  await expect(apple).toBeVisible()
+  await expect(android.getByRole('listitem')).toHaveCount(3)
+  await expect(apple.getByRole('listitem')).toHaveCount(3)
+  await expect(android).toContainText('Instalar aplicación')
+  await expect(android).toContainText('Añadir a pantalla de inicio')
+  await expect(apple).toContainText('Compartir')
+  await expect(apple).toContainText('Abrir como app')
+  await expect(guide).toContainText('misma cuenta que en la web')
+  await expect(guide).toContainText('Puede que tengas que iniciar sesión de nuevo. Tu colección sigue en la misma cuenta.')
+  await expect(guide).toContainText('Necesitas conexión para consultar y guardar datos; sin ella solo se muestra un aviso y no se guardan cambios para enviarlos después.')
+  await expect(guide).toContainText('Instalarla no activa notificaciones push.')
+  await expect(guide).toContainText('Instagram, Gmail u otra aplicación')
+  await expect(guide).toContainText('depende del navegador y del dispositivo')
+  await page.keyboard.press('Space')
+  await expect(details).not.toHaveAttribute('open')
+  await expect(android).toBeHidden()
+  await expect(apple).toBeHidden()
+  await page.keyboard.press('Space')
+  await expect(details).toHaveAttribute('open', '')
+  await expect(android).toBeVisible()
+  await expect(apple).toBeVisible()
+  await page.keyboard.press('Tab')
+  await expect(guide.getByRole('button', { name: 'Opciones de instalación', exact: true })).toBeFocused()
+})
+
+test('guía sin prompt: opciones abre ayuda manual y cierre/Escape devuelve el foco', async ({ page }) => {
+  // Simular ausencia de oferta nativa sin sustituir pwaClient ni su modal real.
+  await page.addInitScript(() => window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+  }, { capture: true }))
+  await ready(page)
+  const visits = navigations(page)
+  const guide = await expandGuide(page)
+  const options = guide.getByRole('button', { name: 'Opciones de instalación', exact: true })
+  await expect(options).toHaveAttribute('aria-haspopup', 'dialog')
+  await options.click()
+  const modal = page.getByRole('dialog', { name: 'Instalar Pokéfolio', exact: true })
+  await expect(modal).toBeVisible()
+  await expect(page.locator('dialog[open]')).toHaveCount(1)
+  await expect(modal.getByRole('region', { name: 'Pasos de instalación' })).toBeVisible()
+  await expect(modal.getByRole('button', { name: 'Instalar Pokéfolio', exact: true })).toHaveCount(0)
+  await expect(modal).toContainText('No se guardan operaciones para enviarlas después.')
+  await modal.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  // Soft mantiene el fallo y permite comprobar también Escape, sin ocultarlo.
+  await expect.soft(options, 'Cerrar debe devolver el foco al botón que abrió el modal').toBeFocused()
+  await options.press('Enter')
+  await expect(modal).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect.soft(options, 'Escape debe devolver el foco al botón que abrió el modal').toBeFocused()
+  expect(visits).toEqual([])
+})
+
+test('guía y footer comparten cliente: prompt SINTÉTICO consumido una sola vez, sin acreditar instalación nativa', async ({ page }) => {
+  await ready(page)
+  const guide = await expandGuide(page)
+  await page.evaluate(() => {
+    const event = new Event('beforeinstallprompt', { cancelable: true })
+    Object.assign(event, {
+      prompt: async () => { document.documentElement.dataset.guidePromptCalls = String(Number(document.documentElement.dataset.guidePromptCalls || 0) + 1) },
+      userChoice: Promise.resolve({ outcome: 'dismissed' }),
+    })
+    window.dispatchEvent(event)
+  })
+  await guide.getByRole('button', { name: 'Opciones de instalación', exact: true }).click()
+  const modal = page.getByRole('dialog')
+  await modal.getByRole('button', { name: 'Instalar Pokéfolio', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-guide-prompt-calls', '1')
+  await expect(modal.getByRole('button', { name: 'Instalar Pokéfolio', exact: true })).toHaveCount(0)
+  const message = await modal.getByRole('status').innerText()
+  expect(message).not.toBe('')
+  await modal.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await page.locator('footer').getByRole('button', { name: 'Instalar app', exact: true }).click()
+  await expect(modal).toBeVisible()
+  await expect(modal.getByRole('status')).toHaveText(message)
+  await expect(modal.getByRole('button', { name: 'Instalar Pokéfolio', exact: true })).toHaveCount(0)
+  await expect(page.locator('html')).toHaveAttribute('data-guide-prompt-calls', '1')
+})
+
+test('guía solo en catálogo: Deseos, Contacto y colección conservan footer; al volver reaparece', async ({ page }) => {
+  await ready(page)
+  await expandGuide(page)
+  const nav = page.getByRole('navigation', { name: 'Navegación principal' })
+  for (const [name, path] of [['Deseos', '/deseos'], ['Contacto', '/contacto'], ['Mi colección', '/coleccion']]) {
+    await nav.getByRole('button', { name, exact: true }).click()
+    await expect(page).toHaveURL(`${origin}${path}`)
+    await expect(installGuide(page)).toHaveCount(0)
+    await expect(page.getByText(guideTitle, { exact: true })).toHaveCount(0)
+    const footerButton = page.locator('footer').getByRole('button', { name: 'Instalar app', exact: true })
+    await expect(footerButton).toBeVisible()
+    await footerButton.click()
+    await expect(page.getByRole('dialog', { name: 'Instalar Pokéfolio', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+    await nav.getByRole('button', { name: 'Explorar', exact: true }).click()
+    await expect(page).toHaveURL(`${origin}/catalogo`)
+    await expect(installGuide(page)).toHaveCount(1)
+    await expandGuide(page)
+    await expect(installGuide(page).getByRole('heading', { name: 'Android · Chrome', exact: true })).toBeVisible()
+  }
+})
+
+test('guía tras appinstalled SINTÉTICO conserva pasos y opciones; solo un botón App instalada en footer', async ({ page }) => {
+  await ready(page)
+  await page.evaluate(() => window.dispatchEvent(new Event('appinstalled')))
+  const guide = installGuide(page)
+  await expect(guide).toContainText('Ya estás usando Pokéfolio como app o has confirmado su instalación en este navegador.')
+  await expect(page.getByRole('button', { name: 'App instalada', exact: true })).toHaveCount(1)
+  await expect(page.locator('footer').getByRole('button', { name: 'App instalada', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Instalar app', exact: true })).toHaveCount(0)
+  await expandGuide(page)
+  await expect(guide.getByRole('heading', { name: 'Android · Chrome', exact: true })).toBeVisible()
+  await expect(guide.getByRole('heading', { name: 'iPhone o iPad · Safari', exact: true })).toBeVisible()
+  const options = guide.getByRole('button', { name: 'Opciones de instalación', exact: true })
+  await options.click()
+  await expect(page.getByRole('dialog', { name: 'App instalada', exact: true })).toContainText('ya está instalada')
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).click()
+  await expect(options).toBeFocused()
+  await expect(guide.locator('details')).toHaveAttribute('open', '')
+})
+
+for (const dark of [false, true]) {
+  test(`guía expandida ${dark ? 'oscura' : 'clara'}: sin overflow ni solapamientos`, async ({ page }, testInfo) => {
+    await ready(page)
+    if (dark) await page.getByRole('button', { name: 'Activar modo nocturno', exact: true }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', dark ? 'dark' : 'light')
+    const guide = await expandGuide(page)
+    expect([320, 390, 1365]).toContain(page.viewportSize()!.width)
+    expect(await guide.evaluate(node => getComputedStyle(node).getPropertyValue('--pwa-surface').trim())).toBe(dark ? '#142532' : '#fff')
+    // Rectángulos reales: detectar overflow interno aunque algún ancestro lo oculte.
+    expect(await guide.evaluate(node => {
+      const errors: string[] = []
+      const box = node.getBoundingClientRect()
+      const tolerance = 1
+      for (const child of [node, ...node.querySelectorAll<HTMLElement>('*')]) {
+        const rect = child.getBoundingClientRect()
+        if (!rect.width || !rect.height) continue
+        if (rect.left < box.left - tolerance || rect.right > box.right + tolerance
+          || rect.top < box.top - tolerance || rect.bottom > box.bottom + tolerance
+          || child.scrollWidth > child.clientWidth + tolerance) errors.push(child.tagName + '.' + child.className)
+      }
+      const pairs = [
+        ['.pwa-guide-intro > img', '.pwa-guide-intro > div'],
+        ['.pwa-guide-intro', '.pwa-guide-details'],
+        ['summary', '.pwa-guide-platforms'],
+        ['.pwa-guide-platforms > section:first-child', '.pwa-guide-platforms > section:last-child'],
+      ]
+      const overlaps = (a: DOMRect, b: DOMRect) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > tolerance
+        && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > tolerance
+      for (const [a, b] of pairs) {
+        if (overlaps(node.querySelector(a)!.getBoundingClientRect(), node.querySelector(b)!.getBoundingClientRect())) errors.push(`${a} / ${b}`)
+      }
+      for (const selector of ['.pwa-guide-intro > div', '.pwa-guide-details', '.pwa-guide-platforms > section', 'ol']) {
+        for (const parent of node.querySelectorAll(selector)) {
+          const children = [...parent.children]
+          for (let i = 1; i < children.length; i++) {
+            if (overlaps(children[i - 1].getBoundingClientRect(), children[i].getBoundingClientRect())) errors.push(`${selector}: hijos ${i - 1}/${i}`)
+          }
+        }
+      }
+      if (box.left < 0 || box.right > innerWidth || document.documentElement.scrollWidth > innerWidth) errors.push('viewport')
+      let next = node.nextElementSibling
+      while (next && !next.getClientRects().length) next = next.nextElementSibling
+      if (node.previousElementSibling!.getBoundingClientRect().bottom > box.top
+        || !next || box.bottom > next.getBoundingClientRect().top) errors.push('hero/siguiente bloque visible')
+      return errors
+    })).toEqual([])
+    const path = testInfo.outputPath(`guia-expandida-${dark ? 'oscura' : 'clara'}-${page.viewportSize()!.width}.png`)
+    // Capturar desde arriba, sin el scroll automático de locator.screenshot:
+    // en móviles una guía más alta que el viewport quedaría bajo el header sticky.
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
+    await page.screenshot({ path, fullPage: true, animations: 'disabled', scale: 'css' })
+    await testInfo.attach('Guía expandida para revisión visual', { path, contentType: 'image/png' })
+  })
+}
+
 test('primer install real: initialize de producción reclama cliente sin recarga ni aviso de actualización', async ({ page, request }) => {
   const visits = navigations(page)
   await ready(page)

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Download, RefreshCw, WifiOff } from 'lucide-react'
 import { pwaClient } from '../lib/pwa'
 import { Modal } from './Modal'
@@ -13,12 +13,21 @@ function PwaBrand() {
 }
 
 /** Acceso de ayuda siempre disponible en el footer, incluso sin prompt nativo. */
-export function PwaInstallButton() {
+export function PwaInstallButton({ label }: { label?: string } = {}) {
   const state = usePwa()
   const [open, setOpen] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef(false)
+  useEffect(() => {
+    // Esperar al desmontaje del dialog: mientras está abierto, el disparador es inerte.
+    if (!open && returnFocus.current) {
+      returnFocus.current = false
+      trigger.current?.focus()
+    }
+  }, [open])
   return <>
-    <button type="button" className="pwa-install-link" onClick={() => setOpen(true)} aria-haspopup="dialog">
-      <Download size={15} aria-hidden="true" />{state.installed ? 'App instalada' : 'Instalar app'}
+    <button ref={trigger} type="button" className="pwa-install-link" onClick={() => { returnFocus.current = true; setOpen(true) }} aria-haspopup="dialog">
+      <Download size={15} aria-hidden="true" />{label ?? (state.installed ? 'App instalada' : 'Instalar app')}
     </button>
     {open && <Modal title={state.installed ? 'App instalada' : 'Instalar Pokéfolio'} onClose={() => setOpen(false)}>
       <div className="pwa-install-content">
@@ -55,6 +64,46 @@ export function PwaInstallButton() {
       </div>
     </Modal>}
   </>
+}
+
+/** Presentación visible en el catálogo, sin ventanas automáticas ni preferencias persistidas. */
+export function PwaInstallGuide() {
+  const state = usePwa()
+  return <section className="pwa-guide" aria-labelledby="pwa-guide-title">
+    <div className="pwa-guide-intro">
+      <img src="/pwa/icon-192.png" width="64" height="64" alt="" />
+      <div>
+        <p className="pwa-guide-eyebrow">TU COLECCIÓN, A MANO</p>
+        <h2 id="pwa-guide-title">Pokéfolio también en tu móvil</h2>
+        <p>Añade Pokéfolio a tu pantalla de inicio y ábrelo como una app, sin pasar por una tienda de aplicaciones.
+          Con conexión puedes guardar cartas y gestionar tus deseos con la misma cuenta que en la web.</p>
+      </div>
+    </div>
+    {state.installed && <p className="pwa-guide-installed">Ya estás usando Pokéfolio como app o has confirmado su instalación en este navegador.</p>}
+    <details className="pwa-guide-details">
+      <summary>Ver pasos para instalar en el móvil</summary>
+      <div className="pwa-guide-platforms">
+        <section aria-labelledby="pwa-guide-android">
+          <h3 id="pwa-guide-android">Android · Chrome</h3>
+          <ol><li>Abre <strong>www.pokefoliotcg.es</strong> en Chrome.</li>
+            <li>Abre el menú <strong>⋮</strong> y busca <strong>Instalar aplicación</strong> o <strong>Añadir a pantalla de inicio</strong>.</li>
+            <li>Confirma los pasos del navegador. Si aparece el botón de instalación en Pokéfolio, también puedes utilizarlo.</li></ol>
+        </section>
+        <section aria-labelledby="pwa-guide-apple">
+          <h3 id="pwa-guide-apple">iPhone o iPad · Safari</h3>
+          <ol><li>Abre <strong>www.pokefoliotcg.es</strong> en Safari.</li>
+            <li>Pulsa <strong>Compartir</strong> (puede estar dentro del menú) y busca <strong>Añadir a pantalla de inicio</strong>.</li>
+            <li>Si aparece <strong>Abrir como app</strong>, déjalo activado y confirma <strong>Añadir</strong>.</li></ol>
+        </section>
+      </div>
+      <p>Si has llegado desde Instagram, Gmail u otra aplicación, abre primero la página en Chrome o Safari.
+        Si no aparece la opción de instalar, puedes seguir usando la web; depende del navegador y del dispositivo.</p>
+      <p>Puede que tengas que iniciar sesión de nuevo. Tu colección sigue en la misma cuenta.
+        Necesitas conexión para consultar y guardar datos; sin ella solo se muestra un aviso y no se guardan cambios para enviarlos después.
+        Instalarla no activa notificaciones push.</p>
+      <PwaInstallButton label="Opciones de instalación" />
+    </details>
+  </section>
 }
 
 function PwaUpdateNotice() {

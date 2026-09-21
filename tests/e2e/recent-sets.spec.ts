@@ -444,6 +444,8 @@ test('teclado y desplazamiento mantienen accesibles las ocho expansiones sin des
     const previous = region(page).getByRole('button', { name: 'Ver expansiones anteriores en la fila', exact: true })
     // Cambiar de ancho con foco en el último botón puede restaurar su posición de scroll.
     await region(page).getByRole('button', { name: 'Todas las expansiones', exact: true }).focus()
+    // La guía de instalación desplaza la fila más abajo: preparar también el scroll vertical.
+    await track.scrollIntoViewIfNeeded()
     await track.evaluate((element) => element.scrollTo({ left: 0, behavior: 'instant' }))
     await expect(shortcuts(page).first()).toBeInViewport()
     // scroll-snap puede alinear el primer elemento con los 3px de padding del track.

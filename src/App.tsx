@@ -14,7 +14,7 @@ import { DuplicatesPanel } from './components/DuplicatesPanel'
 import { SetProgress } from './components/SetProgress'
 import { Modal } from './components/Modal'
 import { TrainerHero } from './components/TrainerHero'
-import { PwaInstallButton } from './components/PwaControls'
+import { PwaInstallButton, PwaInstallGuide } from './components/PwaControls'
 import { WishlistHeart, WishlistPage, WishlistProvider } from './components/Wishlists'
 import { getCard, LATEST_SET, searchCards, type Search } from './lib/catalog'
 import { addEntry, importEntries, loadCollection, removeEntry, updateEntry, updateSnapshot } from './lib/collection'
@@ -359,7 +359,7 @@ function CollectionApp() {
         {view === 'collection' && user && <div className="account-toolbar"><button onClick={() => setAccountOpen(true)}><UserRound size={17} />Gestionar cuenta</button></div>}
         {(view === 'catalog' || view === 'collection') && <>
           {view === 'catalog'
-            ? <TrainerHero onCollection={() => { setView('collection'); if (!user) openAuth() }} />
+            ? <><TrainerHero onCollection={() => { setView('collection'); if (!user) openAuth() }} /><PwaInstallGuide /></>
             : user && <CollectionSummary entries={entries} stats={stats} onExplore={() => setView('catalog')} />}
           <section className="stats" aria-label="Resumen de tu colección"><div className="stat"><span className="stat-icon violet"><Layers3 size={21} /></span><div><span>Cartas en tu colección</span><strong>{user && !collection.isPending && !collection.isError ? stats.copies.toLocaleString('es-ES') : '—'} <small>ejemplares</small></strong></div></div><div className="stat"><span className="stat-icon green"><TrendingUp size={21} /></span><div><span>Valoración orientativa</span><strong>{user && !collection.isPending && !collection.isError ? euros(stats.total) : '—'}</strong><small>Referencias + valores manuales</small></div></div><div className="stat"><span className="stat-icon amber"><CircleHelp size={21} /></span><div><span>Sin valoración</span><strong>{user && !collection.isPending && !collection.isError ? stats.unpriced : '—'} <small>ejemplares</small></strong><small>{stats.manual} con valor manual</small></div></div></section>
           {notice && <div className={`notice ${notice.error ? 'error' : 'success'}`} role={notice.error ? 'alert' : 'status'}><span>{notice.text}</span><button className="text-button" onClick={() => setNotice(null)} aria-label="Ocultar aviso">Cerrar</button></div>}

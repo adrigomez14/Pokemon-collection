@@ -9,9 +9,10 @@ const output = process.argv[2] ? resolve(process.argv[2]) : fileURLToPath(new UR
 const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || undefined })
 try {
   const page = await browser.newPage({ deviceScaleFactor: 1 })
+  await page.route('**/*', route => route.abort())
   for (const [name, size] of [['icon-192.png', 192], ['icon-512.png', 512], ['apple-touch-icon.png', 180]]) {
     await page.setViewportSize({ width: size, height: size })
-    await page.setContent(`<html><head><style>html,body{margin:0;background:#17324d}svg{display:block;width:100vw;height:100vh}</style></head><body>${svg}</body></html>`)
+    await page.setContent(`<html><head><style>html,body{margin:0;background:#f5f8fc}svg{display:block;width:100vw;height:100vh}</style></head><body>${svg}</body></html>`)
     await page.screenshot({ path: join(output, name), omitBackground: false })
     console.log(`${name}: ${size}x${size}`)
   }
